@@ -49,8 +49,6 @@ import com.google.cloud.spanner.pgadapter.utils.ClientAutoDetector.WellKnownClie
 import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.TerminateResponse;
-import com.google.cloud.spanner.pgadapter.wireprotocol.BootstrapMessage;
-import com.google.cloud.spanner.pgadapter.wireprotocol.SSLMessage;
 import com.google.cloud.spanner.pgadapter.wireprotocol.WireMessage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -302,37 +300,8 @@ public class ConnectionHandler extends Thread {
       this.connectionMetadata = connectionMetadata;
 
       try {
-        this.message = this.server.recordMessage(BootstrapMessage.create(this));
-        if (!ssl
-            && getServer().getOptions().getSslMode().isSslEnabled()
-            && this.message instanceof SSLMessage) {
-          this.message.send();
-          this.connectionMetadata.markForRestart();
-          result = RunConnectionState.RESTART_WITH_SSL;
-          return result;
-        }
-        // Check whether the connection is valid. That is, the connection satisfies any restrictions
-        // on non-localhost connections and SSL requirements.
-        if (!checkValidConnection(ssl)) {
-          return result;
-        }
-        this.message.send();
-
-        while (this.status == ConnectionStatus.UNAUTHENTICATED) {
-          try {
-            message.nextHandler();
-            message.send();
-          } catch (EOFException eofException) {
-            // This indicates that the frontend terminated the connection before we got
-            // authenticated. This is in most cases an indication that the frontend killed the
-            // connection after having requested SSL and gotten an SSL denied message.
-            this.status = ConnectionStatus.TERMINATED;
-            break;
-          }
-        }
-        while (this.status != ConnectionStatus.TERMINATED) {
-          handleMessages();
-        }
+        // this.connectionMetadata.getInputStream()
+        // this.connectionMetadata.getOutputStream()
       } catch (PGException pgException) {
         this.handleError(pgException);
       } catch (Exception exception) {
@@ -351,26 +320,7 @@ public class ConnectionHandler extends Thread {
                   "Exception on connection handler with ID %s for client %s: %s",
                   getName(), socket.getInetAddress().getHostAddress(), e));
     } finally {
-      if (result != RunConnectionState.RESTART_WITH_SSL) {
-        logger.log(
-            Level.INFO, () -> String.format("Closing connection handler with ID %s", getName()));
-        try {
-          if (this.spannerConnection != null) {
-            this.spannerConnection.close();
-          }
-          this.socket.close();
-        } catch (SpannerException | IOException e) {
-          logger.log(
-              Level.WARNING,
-              e,
-              () ->
-                  String.format(
-                      "Exception while closing connection handler with ID %s", getName()));
-        }
-        this.server.deregister(this);
-        logger.log(
-            Level.INFO, () -> String.format("Connection handler with ID %s closed", getName()));
-      }
+
     }
     return result;
   }
