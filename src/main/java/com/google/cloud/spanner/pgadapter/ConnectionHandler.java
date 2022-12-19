@@ -32,6 +32,7 @@ import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.cloud.spanner.connection.ConnectionOptionsHelper;
+import com.google.cloud.spanner.parser.Parser;
 import com.google.cloud.spanner.pgadapter.error.PGException;
 import com.google.cloud.spanner.pgadapter.error.PGExceptionFactory;
 import com.google.cloud.spanner.pgadapter.error.SQLState;
@@ -301,7 +302,17 @@ public class ConnectionHandler extends Thread {
 
       try {
         // this.connectionMetadata.getInputStream()
-        // this.connectionMetadata.getOutputStream()
+        this.connectionMetadata.getOutputStream().write(Parser.createServerGreeting());
+
+        this.connectionMetadata.getOutputStream().flush();
+        Parser.consumeInputStream(connectionMetadata);
+        this.connectionMetadata.getOutputStream().write(Parser.createAuthSwitchRequest());
+        this.connectionMetadata.getOutputStream().flush();
+
+        Parser.consumeInputStream(connectionMetadata);
+        this.connectionMetadata.getOutputStream().write(Parser.createResponseOk());
+        this.connectionMetadata.getOutputStream().flush();
+        Thread.sleep(10000);
       } catch (PGException pgException) {
         this.handleError(pgException);
       } catch (Exception exception) {

@@ -114,7 +114,7 @@ public class OptionsMetadata {
   private static final String CLI_ARGS =
       "pgadapter -p <project> -i <instance> -d <database> -c <credentials_file>";
   private static final String OPTION_HELP = "h";
-  private static final String DEFAULT_PORT = "5432";
+  private static final String DEFAULT_PORT = "3306";
   private static final int MIN_PORT = 0, MAX_PORT = 65535;
   private static final String DEFAULT_SOCKET_DIR = "/tmp";
   private static final String SOCKET_FILE_NAME = ".s.PGSQL.%d";
