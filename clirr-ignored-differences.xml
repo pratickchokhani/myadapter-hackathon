@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- see http://www.mojohaus.org/clirr-maven-plugin/examples/ignored-differences.html -->
+<differences>
+  <!-- Removed ProxyServer.run() as the server is now modeled as an ApiService. -->
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ProxyServer</className>
+    <method>void run()</method>
+  </difference>
+  <!-- Moved transaction status to BackendConnection. -->
+  <difference>
+    <differenceType>6001</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler$ConnectionStatus</className>
+    <field>IDLE</field>
+  </difference>
+  <!-- Changed to copyDirection. This is only for internal use. -->
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/parsers/copy/Copy</className>
+    <method>void copyFrom()</method>
+  </difference>
+  <!-- Changed to BackendConnection. This is only for internal use. -->
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/statements/local/LocalStatement</className>
+    <method>com.google.cloud.spanner.connection.StatementResult execute(com.google.cloud.spanner.connection.Connection)</method>
+    <to>com.google.cloud.spanner.connection.StatementResult
+      execute(com.google.cloud.spanner.myadapter.statements.BackendConnection)</to>
+  </difference>
+  <!-- Return type changed to String[]. This is only for internal use. -->
+  <difference>
+    <differenceType>7006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/statements/local/LocalStatement</className>
+    <method>java.lang.String getSql()</method>
+    <from>java.lang.String</from>
+    <to>java.lang.String[]</to>
+  </difference>
+  <!-- Changed to BackendConnection. This is only for internal use. -->
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/statements/local/ListDatabasesStatement</className>
+    <method>com.google.cloud.spanner.connection.StatementResult execute(com.google.cloud.spanner.connection.Connection)</method>
+    <to>com.google.cloud.spanner.connection.StatementResult
+      execute(com.google.cloud.spanner.myadapter.statements.BackendConnection)</to>
+  </difference>
+  <!-- Return type changed to String[]. This is only for internal use. -->
+  <difference>
+    <differenceType>7006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/statements/local/ListDatabasesStatement</className>
+    <method>java.lang.String getSql()</method>
+    <from>java.lang.String</from>
+    <to>java.lang.String[]</to>
+  </difference>
+  <!-- Added method for testing. This is only for internal use. -->
+  <difference>
+    <differenceType>7013</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/wireprotocol/AbstractQueryProtocolMessage</className>
+    <method>java.lang.String getSql()</method>
+  </difference>
+  <!-- ActiveStatement has been removed as it is not needed. Instead, we keep track of which connections are registered and just use the cancel feature built into the Connection API. -->
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>void
+      addActiveStatement(com.google.cloud.spanner.myadapter.statements.IntermediateStatement)</method>
+  </difference>
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>com.google.cloud.spanner.myadapter.statements.IntermediateStatement
+      getActiveStatement()</method>
+  </difference>
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>void
+      removeActiveStatement(com.google.cloud.spanner.myadapter.statements.IntermediateStatement)</method>
+  </difference>
+  <difference>
+    <differenceType>7006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>void cancelActiveStatement(int, int)</method>
+    <from>void</from>
+    <to>boolean</to>
+  </difference>
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/connection/ConnectionOptionsHelper</className>
+    <method>com.google.cloud.spanner.connection.ConnectionOptions$Builder setCredentials(com.google.cloud.spanner.connection.ConnectionOptions$Builder, com.google.auth.oauth2.GoogleCredentials)</method>
+    <to>com.google.cloud.spanner.connection.ConnectionOptions$Builder setCredentials(com.google.cloud.spanner.connection.ConnectionOptions$Builder, com.google.auth.Credentials)</to>
+  </difference>
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>void connectToSpanner(java.lang.String, com.google.auth.oauth2.GoogleCredentials)</method>
+    <to>void connectToSpanner(java.lang.String, com.google.auth.Credentials)</to>
+  </difference>
+  <!-- Use backend parsing of statements for describing parameters. -->
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>void registerAutoDescribedStatement(java.lang.String, int[])</method>
+    <to>void registerAutoDescribedStatement(java.lang.String, java.util.concurrent.Future)</to>
+  </difference>
+  <difference>
+    <differenceType>7006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/ConnectionHandler</className>
+    <method>int[] getAutoDescribedStatement(java.lang.String)</method>
+    <from>int[]</from>
+    <to>java.util.concurrent.Future</to>
+  </difference>
+
+  <!-- Add ignores for all sub packages, as these are considered internal. -->
+  <difference>
+    <differenceType>8001</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/parsers/copy/*</className>
+  </difference>
+  <difference>
+    <differenceType>1001</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>6001</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <field>**</field>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>6003</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <field>**</field>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>6004</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <field>**</field>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>6006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <field>**</field>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>7002</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>7004</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>7005</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>7006</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>7009</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+  <difference>
+    <differenceType>8001</differenceType>
+    <className>com/google/cloud/spanner/pgadapter/*/*</className>
+    <method>**</method>
+    <from>**</from>
+    <to>**</to>
+  </difference>
+
+</differences>
