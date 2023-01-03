@@ -1,4 +1,5 @@
 # Google Cloud Spanner PGAdapter
+# Hackathon
 
 PGAdapter is a proxy which translates the PostgreSQL wire-protocol into the
 equivalent for Spanner databases [that use the PostgreSQL interface](https://cloud.google.com/spanner/docs/postgresql-interface).
