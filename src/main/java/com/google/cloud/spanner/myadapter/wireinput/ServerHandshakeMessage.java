@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,29 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spanner.myadapter.wireoutput;
+package com.google.cloud.spanner.myadapter.wireinput;
 
-import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
-import com.google.cloud.spanner.myadapter.utils.Converter;
+public class ServerHandshakeMessage extends WireMessage {
+  private static final ServerHandshakeMessage STATIC_MESSAGE = new ServerHandshakeMessage();
+  private static final String MESSAGE_NAME = "ServerHandshakeMessage";
+  protected static final char IDENTIFIER = '\0';
 
-public class RowResponse extends WireOutput {
-
-  public RowResponse(
-      int currentSequenceNumber, ConnectionMetadata connectionMetadata, ResultSet resultSet)
-      throws Exception {
-    super(currentSequenceNumber, connectionMetadata);
-
-    writePayload(Converter.convertResultSetRowToDataRowResponse(resultSet));
+  public ServerHandshakeMessage() {
+    super(-1);
   }
 
   @Override
+  protected void processRequest() throws Exception {}
+
+  @Override
   protected String getMessageName() {
-    return "OkResponse";
+    return MESSAGE_NAME;
   }
 
   @Override
   protected String getPayloadString() {
     return "";
+  }
+
+  @Override
+  protected String getIdentifier() {
+    return String.valueOf(IDENTIFIER);
+  }
+
+  public static ServerHandshakeMessage getInstance() {
+    return STATIC_MESSAGE;
   }
 }

@@ -14,10 +14,15 @@
 
 package com.google.cloud.spanner.myadapter;
 
-import com.google.cloud.spanner.myadapter.wireoutput.ServerGreetingResponse;
-import com.google.cloud.spanner.myadapter.wireprotocol.ClientHandshakeMessage;
-import com.google.cloud.spanner.myadapter.wireprotocol.QueryMessage;
-import com.google.cloud.spanner.myadapter.wireprotocol.WireMessage;
+import com.google.cloud.spanner.connection.BackendConnection;
+import com.google.cloud.spanner.myadapter.command.CommandHandler;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
+import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
+import com.google.cloud.spanner.myadapter.wireinput.HeaderMessage;
+import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
+import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
 import java.io.IOException;
 
 /**
@@ -25,72 +30,66 @@ import java.io.IOException;
  * protocol status and the incoming packet.
  */
 public class WireProtocolHandler {
-  private final ConnectionHandler connection;
 
-  public void setProtocolStatus(ProtocolStatus protocolStatus) {
-    this.protocolStatus = protocolStatus;
-  }
+  private final ConnectionMetadata connectionMetadata;
+  private final CommandHandler commandHandler;
+  private final SessionState sessionState;
+  private final BackendConnection backendConnection;
 
-  private volatile ProtocolStatus protocolStatus = ProtocolStatus.UNAUTHENTICATED;
-  private int remainingPayloadLength;
-
-  public int getNextMessageSequenceNumber() {
-    messageSequenceNumber++;
-    return messageSequenceNumber;
-  }
-
-  private int messageSequenceNumber = -1;
-
-  public WireProtocolHandler(ConnectionHandler connection) {
-    this.connection = connection;
+  public WireProtocolHandler(
+      ConnectionMetadata connectionMetadata,
+      SessionState sessionState,
+      BackendConnection backendConnection) {
+    this.backendConnection = backendConnection;
+    this.commandHandler = new CommandHandler(connectionMetadata, sessionState, backendConnection);
+    this.connectionMetadata = connectionMetadata;
+    this.sessionState = sessionState;
   }
 
   public void run() throws Exception {
-    new ServerGreetingResponse(connection).send(true);
-    while (protocolStatus != ProtocolStatus.TERMINATED) {
-      nextMessage().process();
+    commandHandler.processMessage(ServerHandshakeMessage.getInstance());
+    while (sessionState.getProtocolStatus() != ProtocolStatus.TERMINATED) {
+      processNextMessage();
+      if (sessionState.getProtocolStatus() == ProtocolStatus.AUTHENTICATED) {
+        System.out.println("connecting to spanner");
+        backendConnection.connectToSpanner("test", null);
+        sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
+      }
     }
   }
 
-  private WireMessage nextMessage() throws Exception {
-    readMessageHeader(connection);
-    switch (protocolStatus) {
-      case UNAUTHENTICATED:
+  private void processNextMessage() throws Exception {
+    HeaderMessage headerMessage = parseHeaderMessage(connectionMetadata);
+    switch (sessionState.getProtocolStatus()) {
+      case SERVER_GREETINGS_SENT:
         System.out.println("unauthenticated message");
-        return new ClientHandshakeMessage(connection, remainingPayloadLength);
-      case AUTHENTICATED:
+        ClientHandshakeMessage clientHandshakeMessage = new ClientHandshakeMessage(headerMessage);
+        commandHandler.processMessage(clientHandshakeMessage);
+        break;
+      case QUERY_WAIT:
         System.out.println("authenticated message");
-        return nextCommandMessage();
+        nextCommandMessage(headerMessage);
+        break;
       default:
         throw new Exception("Illegal protocol message state");
     }
   }
 
-  private WireMessage nextCommandMessage() throws Exception {
-    int nextCommand = connection.getConnectionMetadata().getInputStream().readUnsignedByte();
-    remainingPayloadLength--;
+  private void nextCommandMessage(HeaderMessage headerMessage) throws Exception {
+    int nextCommand = headerMessage.getBufferedInputStream().read();
     switch (nextCommand) {
       case QueryMessage.IDENTIFIER:
         System.out.println("query received");
-        return new QueryMessage(connection, remainingPayloadLength);
+        QueryMessage queryMessage = new QueryMessage(headerMessage);
+        commandHandler.processMessage(queryMessage);
+        break;
       default:
         throw new Exception("Unknown command");
     }
   }
 
-  public void readMessageHeader(ConnectionHandler connection) throws IOException {
-    this.remainingPayloadLength =
-        connection.getConnectionMetadata().getInputStream().readUnsignedByte()
-            + (connection.getConnectionMetadata().getInputStream().readUnsignedByte() << 8)
-            + (connection.getConnectionMetadata().getInputStream().readUnsignedByte() << 16);
-    this.messageSequenceNumber =
-        connection.getConnectionMetadata().getInputStream().readUnsignedByte();
-  }
-
-  /** Status of a {@link WireProtocolHandler} */
-  public enum ProtocolStatus {
-    UNAUTHENTICATED,
-    AUTHENTICATED,
-    TERMINATED,
+  private HeaderMessage parseHeaderMessage(ConnectionMetadata connectionMetadata)
+      throws IOException {
+    return HeaderMessage.create(connectionMetadata.getInputStream());
   }
 }

@@ -14,13 +14,16 @@
 
 package com.google.cloud.spanner.myadapter.wireoutput;
 
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.parsers.LongParser;
 import java.io.IOException;
 
 public class ColumnCountResponse extends WireOutput {
-  public ColumnCountResponse(ConnectionHandler connection, int columnCount) throws IOException {
-    super(connection);
+
+  public ColumnCountResponse(
+      int currentSequenceNumber, ConnectionMetadata connectionMetadata, int columnCount)
+      throws IOException {
+    super(currentSequenceNumber, connectionMetadata);
 
     writePayload(LongParser.getLengthEncodedBytes(columnCount));
   }

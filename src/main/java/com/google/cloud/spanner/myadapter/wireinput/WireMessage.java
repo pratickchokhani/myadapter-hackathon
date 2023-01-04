@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spanner.myadapter.wireprotocol;
+package com.google.cloud.spanner.myadapter.wireinput;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.myadapter.ConnectionHandler;
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.logging.Level;
@@ -31,20 +29,20 @@ public abstract class WireMessage {
   private static final Logger logger = Logger.getLogger(WireMessage.class.getName());
 
   protected int length;
-  private DataInputStream inputStream;
-  private DataOutputStream outputStream;
-  private byte[] inputBuffer;
   protected ByteArrayInputStream bufferedInputStream;
   protected ConnectionHandler connection;
+  private int messageSequenceNumber;
 
-  public WireMessage(ConnectionHandler connection, int length) throws IOException {
-    this.connection = connection;
-    this.inputStream = connection.getConnectionMetadata().getInputStream();
-    this.outputStream = connection.getConnectionMetadata().getOutputStream();
-    this.length = length;
-    inputBuffer = new byte[length];
-    this.inputStream.readFully(inputBuffer);
-    this.bufferedInputStream = new ByteArrayInputStream(inputBuffer);
+  public WireMessage(HeaderMessage headerMessage) throws IOException {
+    this.length = headerMessage.getRemainingPayloadLength();
+    this.messageSequenceNumber = headerMessage.getMessageSequenceNumber();
+    this.bufferedInputStream = headerMessage.getBufferedInputStream();
+  }
+
+  public WireMessage(int messageSequenceNumber) {
+    this.length = 0;
+    this.messageSequenceNumber = messageSequenceNumber;
+    this.bufferedInputStream = new ByteArrayInputStream(new byte[0]);
   }
 
   /**
@@ -132,5 +130,9 @@ public abstract class WireMessage {
     }
 
     return value;
+  }
+
+  public int getMessageSequenceNumber() {
+    return messageSequenceNumber;
   }
 }

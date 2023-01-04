@@ -198,7 +198,7 @@ public class SimpleParser {
   private String sql;
   private int pos;
 
-  SimpleParser(String sql) {
+  public SimpleParser(String sql) {
     this.sql = sql;
   }
 
@@ -249,7 +249,7 @@ public class SimpleParser {
    * Splits the given sql string into multiple sql statements. A semi-colon (;) indicates the end of
    * a statement.
    */
-  ImmutableList<String> splitStatements() {
+  public ImmutableList<String> splitStatements() {
     // First check trivial cases with only one statement.
     int firstIndexOfDelimiter = sql.indexOf(STATEMENT_DELIMITER);
     if (firstIndexOfDelimiter == -1) {

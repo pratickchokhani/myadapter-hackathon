@@ -15,16 +15,21 @@
 package com.google.cloud.spanner.myadapter.wireoutput;
 
 import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.parsers.IntegerParser;
 import com.google.cloud.spanner.myadapter.parsers.StringParser;
 import com.google.cloud.spanner.myadapter.utils.Converter;
 import java.io.IOException;
 
 public class ColumnDefinitionResponse extends WireOutput {
+
   public ColumnDefinitionResponse(
-      ConnectionHandler connection, ResultSet resultSet, int columnIndex) throws IOException {
-    super(connection);
+      int currentSequenceNumber,
+      ConnectionMetadata connectionMetadata,
+      ResultSet resultSet,
+      int columnIndex)
+      throws IOException {
+    super(currentSequenceNumber, connectionMetadata);
 
     String catalog = "def"; // This is the only supported catalog in MySQL right now.
     writePayload(StringParser.getLengthEncodedBytes(catalog));

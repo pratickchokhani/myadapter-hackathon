@@ -15,8 +15,8 @@
 package com.google.cloud.spanner.myadapter.wireoutput;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
-import com.google.cloud.spanner.myadapter.wireprotocol.WireMessage;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -38,14 +38,14 @@ public abstract class WireOutput {
 
   private static final Logger logger = Logger.getLogger(WireOutput.class.getName());
 
-  private ConnectionHandler connection;
-  private DataOutputStream outputStream;
-  private ByteArrayOutputStream bufferOutputStream;
+  private int currentSequenceNumber;
+  private final DataOutputStream outputStream;
+  private final ByteArrayOutputStream bufferOutputStream;
   protected int length;
 
-  public WireOutput(ConnectionHandler connection) {
-    this.connection = connection;
-    this.outputStream = connection.getConnectionMetadata().getOutputStream();
+  public WireOutput(int currentSequenceNumber, ConnectionMetadata connectionMetadata) {
+    this.currentSequenceNumber = currentSequenceNumber;
+    this.outputStream = connectionMetadata.getOutputStream();
     this.bufferOutputStream = new ByteArrayOutputStream(256);
   }
 
@@ -54,17 +54,19 @@ public abstract class WireOutput {
     // TODO: If buffered data exceeded the max write packet size, send the buffered data in chunks.
   }
 
-  public void send() throws IOException {
+  public int send() throws IOException {
     send(false);
+    return currentSequenceNumber;
   }
 
-  public void send(boolean flush) throws IOException {
+  public int send(boolean flush) throws IOException {
     logger.log(Level.FINE, this::toString);
     sendHeader();
     this.bufferOutputStream.writeTo(outputStream);
     if (flush) {
       outputStream.flush();
     }
+    return currentSequenceNumber;
   }
 
   private void sendHeader() throws IOException {
@@ -75,7 +77,11 @@ public abstract class WireOutput {
       length >>= 8;
     }
 
-    this.outputStream.write((byte) connection.getWireHandler().getNextMessageSequenceNumber());
+    this.outputStream.write((byte) getNextMessageSequenceNumber());
+  }
+
+  private int getNextMessageSequenceNumber() {
+    return ++currentSequenceNumber;
   }
 
   /**

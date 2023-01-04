@@ -15,37 +15,25 @@
 package com.google.cloud.spanner.myadapter;
 
 import com.google.api.core.InternalApi;
-import com.google.auth.Credentials;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.DatabaseNotFoundException;
-import com.google.cloud.spanner.Dialect;
-import com.google.cloud.spanner.ErrorCode;
-import com.google.cloud.spanner.InstanceNotFoundException;
-import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.connection.Connection;
-import com.google.cloud.spanner.connection.ConnectionOptions;
-import com.google.cloud.spanner.connection.ConnectionOptionsHelper;
-import com.google.cloud.spanner.myadapter.WireProtocolHandler.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
-import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
-import com.google.cloud.spanner.myadapter.wireprotocol.WireMessage;
+import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
+import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLSocketFactory;
 
 /**
@@ -60,8 +48,8 @@ public class ConnectionHandler extends Thread {
 
   private static final Logger logger = Logger.getLogger(ConnectionHandler.class.getName());
   private static final AtomicLong CONNECTION_HANDLER_ID_GENERATOR = new AtomicLong(0L);
-  private static final String CHANNEL_PROVIDER_PROPERTY = "CHANNEL_PROVIDER";
 
+  private final SessionState sessionState;
   private final ProxyServer server;
   private Socket socket;
   private static final Map<Integer, ConnectionHandler> CONNECTION_HANDLERS =
@@ -71,9 +59,8 @@ public class ConnectionHandler extends Thread {
   //  32 bytes, and shouldn't be incremented on failed startups.
   private static final AtomicInteger incrementingConnectionId = new AtomicInteger(0);
   private ConnectionMetadata connectionMetadata;
-  private Connection spannerConnection;
-  private DatabaseId databaseId;
   private int sequenceNumber;
+  private BackendConnection backendConnection;
 
   public WireProtocolHandler getWireHandler() {
     return wireHandler;
@@ -100,88 +87,14 @@ public class ConnectionHandler extends Thread {
             String.format(
                 "Connection handler with ID %s created for client %s",
                 getName(), socket.getInetAddress().getHostAddress()));
-    this.spannerConnection = spannerConnection;
-    this.wireHandler = new WireProtocolHandler(this);
+    this.sessionState = new SessionState();
+    this.backendConnection =
+        new BackendConnection(server.getOptions(), server.getProperties(), spannerConnection);
   }
 
   void createSSLSocket() throws IOException {
     this.socket =
         ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(socket, null, true);
-  }
-
-  @InternalApi
-  public void connectToSpanner(String database, @Nullable Credentials credentials) {
-    OptionsMetadata options = getServer().getOptions();
-    String uri =
-        options.hasDefaultConnectionUrl()
-            ? options.getDefaultConnectionUrl()
-            : options.buildConnectionURL(database);
-    if (uri.startsWith("jdbc:")) {
-      uri = uri.substring("jdbc:".length());
-    }
-    uri = appendPropertiesToUrl(uri, getServer().getProperties());
-    if (System.getProperty(CHANNEL_PROVIDER_PROPERTY) != null) {
-      uri =
-          uri
-              + ";"
-              + ConnectionOptions.CHANNEL_PROVIDER_PROPERTY_NAME
-              + "="
-              + System.getProperty(CHANNEL_PROVIDER_PROPERTY);
-      // This forces the connection to use NoCredentials.
-      uri = uri + ";usePlainText=true";
-      try {
-        Class.forName(System.getProperty(CHANNEL_PROVIDER_PROPERTY));
-      } catch (ClassNotFoundException e) {
-        throw SpannerExceptionFactory.newSpannerException(
-            ErrorCode.INVALID_ARGUMENT,
-            "Unknown or invalid channel provider: "
-                + System.getProperty(CHANNEL_PROVIDER_PROPERTY));
-      }
-    }
-    ConnectionOptions.Builder connectionOptionsBuilder = ConnectionOptions.newBuilder().setUri(uri);
-    if (credentials != null) {
-      connectionOptionsBuilder =
-          ConnectionOptionsHelper.setCredentials(connectionOptionsBuilder, credentials);
-    }
-    ConnectionOptions connectionOptions = connectionOptionsBuilder.build();
-    Connection spannerConnection = connectionOptions.getConnection();
-    try {
-      // Note: Calling getDialect() will cause a SpannerException if the connection itself is
-      // invalid, for example as a result of the credentials being wrong.
-      if (spannerConnection.getDialect() != Dialect.GOOGLE_STANDARD_SQL) {
-        spannerConnection.close();
-        throw MyException.newBuilder(
-                String.format(
-                    "The database uses dialect %s. Currently PGAdapter only supports connections to PostgreSQL dialect databases. "
-                        + "These can be created using https://cloud.google.com/spanner/docs/quickstart-console#postgresql",
-                    spannerConnection.getDialect()))
-            .setSeverity(Severity.FATAL)
-            .setSQLState(SQLState.SQLServerRejectedEstablishmentOfSQLConnection)
-            .build();
-      }
-    } catch (InstanceNotFoundException | DatabaseNotFoundException notFoundException) {
-      SpannerException exceptionToThrow = notFoundException;
-      spannerConnection.close();
-      throw exceptionToThrow;
-    } catch (SpannerException e) {
-      spannerConnection.close();
-      throw e;
-    }
-    this.spannerConnection = spannerConnection;
-    this.databaseId = connectionOptions.getDatabaseId();
-  }
-
-  private String appendPropertiesToUrl(String url, Properties info) {
-    if (info == null || info.isEmpty()) {
-      return url;
-    }
-    StringBuilder result = new StringBuilder(url);
-    for (Entry<Object, Object> entry : info.entrySet()) {
-      if (entry.getValue() != null && !"".equals(entry.getValue())) {
-        result.append(";").append(entry.getKey()).append("=").append(entry.getValue());
-      }
-    }
-    return result.toString();
   }
 
   /**
@@ -200,14 +113,6 @@ public class ConnectionHandler extends Thread {
     runConnection();
   }
 
-  public void setSequenceNumber(int sequenceNumber) {
-    this.sequenceNumber = sequenceNumber;
-  }
-
-  public int getSequenceNumber() {
-    return sequenceNumber;
-  }
-
   /**
    * Starts listening for incoming messages on the network socket. Returns RESTART_WITH_SSL if the
    * listening process should be restarted with SSL.
@@ -216,6 +121,8 @@ public class ConnectionHandler extends Thread {
     try (ConnectionMetadata connectionMetadata =
         new ConnectionMetadata(this.socket.getInputStream(), this.socket.getOutputStream())) {
       this.connectionMetadata = connectionMetadata;
+      this.wireHandler =
+          new WireProtocolHandler(connectionMetadata, sessionState, backendConnection);
 
       try {
         wireHandler.run();
@@ -242,10 +149,8 @@ public class ConnectionHandler extends Thread {
   /** Called when a Terminate message is received. This closes this {@link ConnectionHandler}. */
   public void handleTerminate() {
     synchronized (this) {
-      if (this.spannerConnection != null) {
-        this.spannerConnection.close();
-      }
-      this.wireHandler.setProtocolStatus(ProtocolStatus.TERMINATED);
+      backendConnection.terminate();
+      this.sessionState.setProtocolStatus(ProtocolStatus.TERMINATED);
       CONNECTION_HANDLERS.remove(this.connectionId);
     }
   }
@@ -287,14 +192,6 @@ public class ConnectionHandler extends Thread {
 
   public ProxyServer getServer() {
     return this.server;
-  }
-
-  public Connection getSpannerConnection() {
-    return this.spannerConnection;
-  }
-
-  public DatabaseId getDatabaseId() {
-    return this.databaseId;
   }
 
   public ConnectionMetadata getConnectionMetadata() {
