@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spanner.myadapter.statements;
+package com.google.cloud.spanner.myadapter.command.commands;
 
-import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.connection.StatementResult;
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
-import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.statements.SimpleParser;
+import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
+import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnCountResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnDefinitionResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.EofResponse;
@@ -29,61 +32,69 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 
-/**
- * Class that represents a simple query protocol statement. This statement can contain multiple
- * semicolon separated SQL statements, but only a single statement is supported right now. The
- * statement is executed in Spanner autocommit mode.
- */
-@InternalApi
-public class SimpleQueryStatement {
-  private final ConnectionHandler connectionHandler;
-  private final OptionsMetadata options;
-  private final ImmutableList<Statement> statements;
-  private int rowsSent = 0;
+public class QueryMessageProcessor extends MessageProcessor {
 
-  public SimpleQueryStatement(
-      OptionsMetadata options, Statement originalStatement, ConnectionHandler connectionHandler) {
-    this.connectionHandler = connectionHandler;
-    this.options = options;
-    this.statements = parseStatements(originalStatement);
+  private int currentSequenceNumber = -1;
+  private final BackendConnection backendConnection;
+
+  public QueryMessageProcessor(
+      ConnectionMetadata connectionMetadata,
+      SessionState sessionState,
+      BackendConnection backendConnection) {
+    super(connectionMetadata, sessionState);
+    this.backendConnection = backendConnection;
   }
 
-  public void execute() throws Exception {
-    for (Statement originalStatement : this.statements) {
+  @Override
+  public void processMessage(WireMessage message) throws Exception {
+    QueryMessage queryMessage = (QueryMessage) message;
+    ImmutableList<Statement> statements = parseStatements(queryMessage.getOriginalStatement());
+    currentSequenceNumber = queryMessage.getMessageSequenceNumber();
+
+    for (Statement originalStatement : statements) {
       System.out.println("flog: statement: " + originalStatement.getSql());
       try {
         System.out.println("flog: sending executing");
 
         StatementResult statementResult =
-            connectionHandler.getSpannerConnection().execute(originalStatement);
+            backendConnection.getSpannerConnection().execute(originalStatement);
         ResultSet resultSet = statementResult.getResultSet();
+        int rowSent = 0;
         while (resultSet.next()) {
-          sendResultSetRow(resultSet);
+          rowSent = sendResultSetRow(resultSet, rowSent);
         }
 
-        new EofResponse(connectionHandler).send(true);
+        currentSequenceNumber =
+            new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
       } catch (Exception ignore) {
         System.out.println("flog: got exception" + ignore.toString());
-        new OkResponse(connectionHandler).send(true);
+        new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         // Stop further processing if an exception occurs.
         break;
       }
     }
   }
 
-  void sendResultSetRow(ResultSet resultSet) throws Exception {
+  private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {
     System.out.println("row " + resultSet.getColumnType(0));
     if (rowsSent == 0) {
       sendColumnDefinitions(resultSet);
     }
-    new RowResponse(connectionHandler, resultSet).send();
+    currentSequenceNumber =
+        new RowResponse(currentSequenceNumber, connectionMetadata, resultSet).send();
     rowsSent++;
+    return rowsSent;
   }
 
   private void sendColumnDefinitions(ResultSet resultSet) throws IOException {
-    new ColumnCountResponse(connectionHandler, resultSet.getColumnCount()).send();
+    currentSequenceNumber =
+        new ColumnCountResponse(
+                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+            .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
-      new ColumnDefinitionResponse(connectionHandler, resultSet, i).send();
+      currentSequenceNumber =
+          new ColumnDefinitionResponse(currentSequenceNumber, connectionMetadata, resultSet, i)
+              .send();
     }
   }
 

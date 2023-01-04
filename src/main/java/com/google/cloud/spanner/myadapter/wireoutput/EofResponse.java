@@ -14,12 +14,13 @@
 
 package com.google.cloud.spanner.myadapter.wireoutput;
 
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import java.io.IOException;
 
 public class EofResponse extends WireOutput {
-  public EofResponse(ConnectionHandler connection) throws IOException {
-    super(connection);
+  public EofResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata)
+      throws IOException {
+    super(currentSequenceNumber, connectionMetadata);
 
     byte[] eofIdentifier = new byte[] {(byte) 0xfe};
     writePayload(eofIdentifier);

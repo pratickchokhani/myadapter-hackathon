@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spanner.myadapter.wireprotocol;
+package com.google.cloud.spanner.myadapter.wireinput;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
-import com.google.cloud.spanner.myadapter.statements.SimpleQueryStatement;
 import java.text.MessageFormat;
 
 /** Executes a simple statement. */
@@ -27,10 +25,9 @@ public class QueryMessage extends WireMessage {
   public static final int IDENTIFIER = 0x03;
 
   private final Statement originalStatement;
-  private final SimpleQueryStatement simpleQueryStatement;
 
-  public QueryMessage(ConnectionHandler connection, int length) throws Exception {
-    super(connection, length);
+  public QueryMessage(HeaderMessage headerMessage) throws Exception {
+    super(headerMessage);
     // parameterCount and parameterSetCount are simply ignored as we are not supporting
     // parameterised queries yet.
     byte parameterCount = (byte) this.bufferedInputStream.read();
@@ -38,15 +35,11 @@ public class QueryMessage extends WireMessage {
 
     this.originalStatement = Statement.of(this.readAll());
     System.out.println("flog: received query : " + this.originalStatement.getSql());
-    this.simpleQueryStatement =
-        new SimpleQueryStatement(
-            connection.getServer().getOptions(), this.originalStatement, this.connection);
   }
 
   @Override
   protected void processRequest() throws Exception {
     System.out.println("flog: executing query");
-    this.simpleQueryStatement.execute();
   }
 
   @Override
@@ -58,6 +51,10 @@ public class QueryMessage extends WireMessage {
   protected String getPayloadString() {
     return new MessageFormat("Length: {0}, SQL: {1}")
         .format(new Object[] {this.length, this.originalStatement.getSql()});
+  }
+
+  public Statement getOriginalStatement() {
+    return originalStatement;
   }
 
   @Override

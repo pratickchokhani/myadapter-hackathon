@@ -14,14 +14,16 @@
 
 package com.google.cloud.spanner.myadapter.wireoutput;
 
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
+import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.parsers.IntegerParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class ServerGreetingResponse extends WireOutput {
-  public ServerGreetingResponse(ConnectionHandler connection) throws IOException {
-    super(connection);
+
+  public ServerGreetingResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata)
+      throws IOException {
+    super(currentSequenceNumber, connectionMetadata);
 
     byte[] protocol = new byte[] {(byte) 10};
     writePayload(protocol);

@@ -12,30 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.cloud.spanner.myadapter.wireprotocol;
+package com.google.cloud.spanner.myadapter.wireinput;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.spanner.myadapter.ConnectionHandler;
-import com.google.cloud.spanner.myadapter.WireProtocolHandler.ProtocolStatus;
-import com.google.cloud.spanner.myadapter.wireoutput.OkResponse;
 import java.text.MessageFormat;
 
 /** Executes a simple statement. */
 @InternalApi
 public class ClientHandshakeMessage extends WireMessage {
+
   protected static final char IDENTIFIER = 'Q';
 
-  public ClientHandshakeMessage(ConnectionHandler connection, int length) throws Exception {
-    super(connection, length);
+  public ClientHandshakeMessage(HeaderMessage headerMessage) throws Exception {
+    super(headerMessage);
     // We don't need to do anything with the received payload at this point.
   }
 
   @Override
-  protected void processRequest() throws Exception {
-    connection.connectToSpanner("test", null);
-    connection.getWireHandler().setProtocolStatus(ProtocolStatus.AUTHENTICATED);
-    new OkResponse(connection).send(true);
-  }
+  protected void processRequest() throws Exception {}
 
   @Override
   protected String getMessageName() {

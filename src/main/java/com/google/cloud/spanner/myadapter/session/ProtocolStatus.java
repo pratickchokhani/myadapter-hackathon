@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@InternalApi
-package com.google.cloud.spanner.myadapter.wireprotocol;
+package com.google.cloud.spanner.myadapter.session;
 
-import com.google.api.core.InternalApi;
+import com.google.cloud.spanner.myadapter.WireProtocolHandler;
+
+/** Status of a {@link WireProtocolHandler} */
+public enum ProtocolStatus {
+  CONNECTION_INITIATED,
+  SERVER_GREETINGS_SENT,
+  AUTHENTICATED,
+  QUERY_WAIT,
+  TERMINATED,
+}
