@@ -82,6 +82,7 @@ public class WireProtocolHandler {
         System.out.println("query received");
         QueryMessage queryMessage = new QueryMessage(headerMessage);
         commandHandler.processMessage(queryMessage);
+        break;
       default:
         throw new Exception("Unknown command");
     }
