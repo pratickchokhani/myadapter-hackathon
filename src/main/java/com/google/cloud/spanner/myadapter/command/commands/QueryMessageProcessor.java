@@ -21,6 +21,7 @@ import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
+import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnCountResponse;
@@ -31,8 +32,12 @@ import com.google.cloud.spanner.myadapter.wireoutput.RowResponse;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class QueryMessageProcessor extends MessageProcessor {
+
+  private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
 
   private int currentSequenceNumber = -1;
   private final BackendConnection backendConnection;
@@ -52,9 +57,14 @@ public class QueryMessageProcessor extends MessageProcessor {
     currentSequenceNumber = queryMessage.getMessageSequenceNumber();
 
     for (Statement originalStatement : statements) {
-      System.out.println("flog: statement: " + originalStatement.getSql());
+      logger.log(Level.INFO,
+          () -> String.format("SQL query being processed: %s.", originalStatement.getSql()));
+      if (QueryTranslator.bypassQuery(originalStatement.getSql())) {
+        new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+        continue;
+      }
       try {
-        System.out.println("flog: sending executing");
+        logger.log(Level.INFO, () -> "Executing query.");
 
         StatementResult statementResult =
             backendConnection.getSpannerConnection().execute(originalStatement);
@@ -66,8 +76,8 @@ public class QueryMessageProcessor extends MessageProcessor {
 
         currentSequenceNumber =
             new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
-      } catch (Exception ignore) {
-        System.out.println("flog: got exception" + ignore.toString());
+      } catch (Exception e) {
+        logger.log(Level.WARNING, e, () -> "Query execution error.");
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         // Stop further processing if an exception occurs.
         break;
@@ -76,7 +86,6 @@ public class QueryMessageProcessor extends MessageProcessor {
   }
 
   private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {
-    System.out.println("row " + resultSet.getColumnType(0));
     if (rowsSent == 0) {
       sendColumnDefinitions(resultSet);
     }
@@ -89,7 +98,7 @@ public class QueryMessageProcessor extends MessageProcessor {
   private void sendColumnDefinitions(ResultSet resultSet) throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
       currentSequenceNumber =
