@@ -27,6 +27,10 @@ public class StringParser extends Parser<String> {
     this.item = item.getString(position);
   }
 
+  public StringParser(String item) {
+    this.item = item;
+  }
+
   public byte[] toLengthEncodedBytes() throws IOException {
     return getLengthEncodedBytes(item);
   }
