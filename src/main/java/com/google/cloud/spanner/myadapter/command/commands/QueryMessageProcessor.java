@@ -69,14 +69,19 @@ public class QueryMessageProcessor extends MessageProcessor {
 
         StatementResult statementResult =
             backendConnection.getSpannerConnection().execute(originalStatement);
-        ResultSet resultSet = statementResult.getResultSet();
-        int rowSent = 0;
-        while (resultSet.next()) {
-          rowSent = sendResultSetRow(resultSet, rowSent);
+        switch (statementResult.getResultType()) {
+          case RESULT_SET:
+            processResultSet(statementResult.getResultSet());
+            break;
+          case UPDATE_COUNT:
+            new OkResponse(currentSequenceNumber, connectionMetadata,
+                statementResult.getUpdateCount()).send(true);
+            break;
+          case NO_RESULT:
+            new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+            break;
         }
 
-        currentSequenceNumber =
-            new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
       } catch (Exception e) {
         logger.log(Level.WARNING, e, () -> "Query execution error.");
         new ErrorResponse(currentSequenceNumber, connectionMetadata, e.getMessage(), 1064)
@@ -85,6 +90,16 @@ public class QueryMessageProcessor extends MessageProcessor {
         break;
       }
     }
+  }
+
+  private void processResultSet(ResultSet resultSet) throws Exception {
+    int rowSent = 0;
+    while (resultSet.next()) {
+      rowSent = sendResultSetRow(resultSet, rowSent);
+    }
+    currentSequenceNumber =
+        new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+
   }
 
   private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {
