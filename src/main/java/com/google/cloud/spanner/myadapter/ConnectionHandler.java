@@ -73,9 +73,7 @@ public class ConnectionHandler extends Thread {
     this(server, socket, null);
   }
 
-  /**
-   * Constructor only for testing.
-   */
+  /** Constructor only for testing. */
   @VisibleForTesting
   ConnectionHandler(ProxyServer server, Socket socket, Connection spannerConnection) {
     super("ConnectionHandler-" + CONNECTION_HANDLER_ID_GENERATOR.incrementAndGet());
@@ -170,9 +168,7 @@ public class ConnectionHandler extends Thread {
     }
   }
 
-  /**
-   * Called when a Terminate message is received. This closes this {@link ConnectionHandler}.
-   */
+  /** Called when a Terminate message is received. This closes this {@link ConnectionHandler}. */
   public void handleTerminate() {
     synchronized (this) {
       backendConnection.terminate();

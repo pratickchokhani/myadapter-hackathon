@@ -21,6 +21,7 @@ import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 public abstract class MessageProcessor {
   protected final ConnectionMetadata connectionMetadata;
   protected final SessionState sessionState;
+  public final int UTF8_MB4 = 255;
 
   protected MessageProcessor(ConnectionMetadata connectionMetadata, SessionState sessionState) {
     this.connectionMetadata = connectionMetadata;

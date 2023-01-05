@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import java.util.logging.Logger;
 public class QueryTranslator {
   private static final Logger logger = Logger.getLogger(QueryTranslator.class.getName());
 
-  private static Set<String> QUERY_TRANSLATORS = new HashSet<String>(
-      Arrays.asList("show databases", "show tables", "select @@version_comment limit 1"));
+  private static Set<String> QUERY_TRANSLATORS =
+      new HashSet<String>(
+          Arrays.asList("show databases", "show tables", "select @@version_comment limit 1"));
 
   public static boolean bypassQuery(String sql) {
     if (QUERY_TRANSLATORS.contains(sql)) {

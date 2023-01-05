@@ -14,47 +14,121 @@
 
 package com.google.cloud.spanner.myadapter.wireoutput;
 
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.parsers.IntegerParser;
 import com.google.cloud.spanner.myadapter.parsers.StringParser;
-import com.google.cloud.spanner.myadapter.utils.Converter;
 import java.io.IOException;
 
 public class ColumnDefinitionResponse extends WireOutput {
 
-  public ColumnDefinitionResponse(
-      int currentSequenceNumber,
-      ConnectionMetadata connectionMetadata,
-      ResultSet resultSet,
-      int columnIndex)
-      throws IOException {
-    super(currentSequenceNumber, connectionMetadata);
+  String catalog = "def";
+  // TODO : Today the MySQL cli does not accept any other value apart from 12 for
+  //  fixedLengthFieldsLength. Assess that a constant value of 12 is good enough.
+  int fixedLengthFieldsLength = 12;
 
-    String catalog = "def"; // This is the only supported catalog in MySQL right now.
+  public static class Builder {
+    int connectionSequenceNumber;
+    ConnectionMetadata connectionMetadata;
+
+    String schema;
+    String table;
+    String originalTable;
+    String column;
+    String originalColumn;
+
+    int charset;
+    int maxColumnLength;
+    int columnType;
+    int columnDefinitionFlags;
+    int decimals;
+
+    public Builder(int connectionSequenceNumber, ConnectionMetadata connectionMetadata) {
+      this.connectionSequenceNumber = connectionSequenceNumber;
+      this.connectionMetadata = connectionMetadata;
+    }
+
+    public Builder schema(String schema) {
+      this.schema = schema;
+      return this;
+    }
+
+    public Builder table(String table) {
+      this.table = table;
+      return this;
+    }
+
+    public Builder originalTable(String originalTable) {
+      this.originalTable = originalTable;
+      return this;
+    }
+
+    public Builder column(String column) {
+      this.column = column;
+      return this;
+    }
+
+    public Builder originalColumn(String originalColumn) {
+      this.originalColumn = originalColumn;
+      return this;
+    }
+
+    public Builder charset(int charset) {
+      this.charset = charset;
+      return this;
+    }
+
+    public Builder maxColumnLength(int maxColumnLength) {
+      this.maxColumnLength = maxColumnLength;
+      return this;
+    }
+
+    public Builder columnType(int columnType) {
+      this.columnType = columnType;
+      return this;
+    }
+
+    public Builder columnDefinitionFlags(int columnDefinitionFlags) {
+      this.columnDefinitionFlags = columnDefinitionFlags;
+      return this;
+    }
+
+    public Builder decimals(int decimals) {
+      this.decimals = decimals;
+      return this;
+    }
+
+    public ColumnDefinitionResponse build() throws IOException {
+      return new ColumnDefinitionResponse(this);
+    }
+  }
+
+  public ColumnDefinitionResponse(ColumnDefinitionResponse.Builder builder) throws IOException {
+    super(builder.connectionSequenceNumber, builder.connectionMetadata);
+
     writePayload(StringParser.getLengthEncodedBytes(catalog));
-    String schemaName = "schemaName";
-    writePayload(StringParser.getLengthEncodedBytes(schemaName));
-    String table = "tableName";
-    writePayload(StringParser.getLengthEncodedBytes(table));
-    String originalTable = "oTableName";
-    writePayload(StringParser.getLengthEncodedBytes(originalTable));
-    String columnName = "columnName";
-    writePayload(StringParser.getLengthEncodedBytes(columnName));
-    String originalColumnName = "originalColumnName";
-    writePayload(StringParser.getLengthEncodedBytes(originalColumnName));
-    int fixedLengthFieldsLength = 12;
+    writePayload(StringParser.getLengthEncodedBytes(builder.schema));
+    writePayload(StringParser.getLengthEncodedBytes(builder.table));
+    writePayload(StringParser.getLengthEncodedBytes(builder.originalTable));
+    // String columnName = resultSet.getMetadata().getRowType().getFields(columnIndex).getName();
+    writePayload(StringParser.getLengthEncodedBytes(builder.column));
+    // TODO: Understand the relationship between columnName and originalColumnName.
+    writePayload(StringParser.getLengthEncodedBytes(builder.originalColumn));
     writePayload(new byte[] {(byte) fixedLengthFieldsLength});
-    byte[] charSet = new byte[] {(byte) 0xff, (byte) 0x00}; // binary charset
+    byte[] charSet =
+        new byte[] {
+          (byte) (builder.charset & 255), (byte) ((builder.charset >> 8) & 255)
+        }; // binary charset
     writePayload(charSet);
-    int maxColumnLength = 20;
-    writePayload(IntegerParser.binaryParse(maxColumnLength));
-    byte[] columnType =
-        new byte[] {Converter.convertToMySqlCode(resultSet.getColumnType(columnIndex))};
+    writePayload(IntegerParser.binaryParse(builder.maxColumnLength));
+    byte[] columnType = new byte[] {(byte) builder.columnType};
     writePayload(columnType);
-    byte[] columnDefinitionFlags = new byte[] {(byte) 0x00, (byte) 0x00};
+    byte[] columnDefinitionFlags =
+        new byte[] {
+          (byte) (builder.columnDefinitionFlags & 255),
+          (byte) ((builder.columnDefinitionFlags >> 8) & 255)
+        };
     writePayload(columnDefinitionFlags);
-    byte[] decimals = new byte[] {(byte) 0x00};
+    byte[] decimals = new byte[] {(byte) builder.decimals};
     writePayload(decimals);
     byte[] iDontKnowWhatTheseBytesMean = new byte[] {(byte) 0x00, (byte) 0x00};
     writePayload(iDontKnowWhatTheseBytesMean);

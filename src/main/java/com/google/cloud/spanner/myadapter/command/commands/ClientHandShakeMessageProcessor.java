@@ -15,7 +15,6 @@
 package com.google.cloud.spanner.myadapter.command.commands;
 
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
-import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.OkResponse;
