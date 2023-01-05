@@ -23,4 +23,5 @@ public enum ProtocolStatus {
   AUTHENTICATED,
   QUERY_WAIT,
   TERMINATED,
+  RESTART_WITH_SSL
 }

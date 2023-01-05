@@ -22,14 +22,19 @@ import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.HeaderMessage;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
+import com.google.cloud.spanner.myadapter.wireinput.TerminateMessage;
 import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Handles wire messages from the client, and initiates the correct workflow based on the current
  * protocol status and the incoming packet.
  */
 public class WireProtocolHandler {
+
+  private static final Logger logger = Logger.getLogger(WireProtocolHandler.class.getName());
 
   private final ConnectionMetadata connectionMetadata;
   private final CommandHandler commandHandler;
@@ -56,6 +61,7 @@ public class WireProtocolHandler {
         sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
       }
     }
+    destroy();
   }
 
   private void processNextMessage() throws Exception {
@@ -67,7 +73,7 @@ public class WireProtocolHandler {
         commandHandler.processMessage(clientHandshakeMessage);
         break;
       case QUERY_WAIT:
-        System.out.println("authenticated message");
+        logger.log(Level.FINE, "Processing next command!");
         nextCommandMessage(headerMessage);
         break;
       default:
@@ -79,13 +85,22 @@ public class WireProtocolHandler {
     int nextCommand = headerMessage.getBufferedInputStream().read();
     switch (nextCommand) {
       case QueryMessage.IDENTIFIER:
-        System.out.println("query received");
+        logger.log(Level.FINE, "Query received!");
         QueryMessage queryMessage = new QueryMessage(headerMessage);
         commandHandler.processMessage(queryMessage);
+        break;
+      case TerminateMessage.IDENTIFIER:
+        logger.log(Level.INFO, "Terminate message received.");
+        TerminateMessage terminateMessage = new TerminateMessage(headerMessage);
+        commandHandler.processMessage(terminateMessage);
         break;
       default:
         throw new Exception("Unknown command");
     }
+  }
+
+  private void destroy() {
+    // TO-DO Destroy any thread.
   }
 
   private HeaderMessage parseHeaderMessage(ConnectionMetadata connectionMetadata)
