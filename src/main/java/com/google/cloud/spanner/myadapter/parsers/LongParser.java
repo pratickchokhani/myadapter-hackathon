@@ -18,7 +18,9 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
 import java.io.IOException;
 
-/** Translate from wire protocol to long and vice versa. */
+/**
+ * Translate from wire protocol to long and vice versa.
+ */
 @InternalApi
 public class LongParser extends Parser<Long> {
 
