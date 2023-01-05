@@ -18,7 +18,9 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
 import java.io.IOException;
 
-/** Translate from wire protocol to long and vice versa. */
+/**
+ * Translate from wire protocol to long and vice versa.
+ */
 @InternalApi
 public class LongParser extends Parser<Long> {
 
@@ -34,7 +36,7 @@ public class LongParser extends Parser<Long> {
   public static byte[] getLengthEncodedBytes(long value) {
     byte[] bytes;
     if (value < 251) {
-      bytes = new byte[] {(byte) value};
+      bytes = new byte[]{(byte) value};
     } else if (value < (1L << 16)) {
       bytes = new byte[3];
       bytes[0] = (byte) 0xFC;
