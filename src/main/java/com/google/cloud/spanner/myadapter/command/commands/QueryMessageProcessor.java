@@ -99,9 +99,7 @@ public class QueryMessageProcessor extends MessageProcessor {
     while (resultSet.next()) {
       rowSent = sendResultSetRow(resultSet, rowSent);
     }
-    currentSequenceNumber =
-        new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
-
+    currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
   private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {

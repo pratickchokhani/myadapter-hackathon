@@ -16,14 +16,12 @@ package com.google.cloud.spanner.myadapter.wireoutput;
 
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.parsers.LongParser;
-import com.google.cloud.spanner.myadapter.parsers.Parser;
-import com.google.cloud.spanner.myadapter.parsers.Parser.FormatCode;
 import java.io.IOException;
 
 public class OkResponse extends WireOutput {
 
-  public OkResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata,
-      long updateCount)
+  public OkResponse(
+      int currentSequenceNumber, ConnectionMetadata connectionMetadata, long updateCount)
       throws IOException {
     super(currentSequenceNumber, connectionMetadata);
 
