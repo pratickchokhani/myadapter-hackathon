@@ -28,10 +28,6 @@ public class LongParser extends Parser<Long> {
     this.item = item.getLong(position);
   }
 
-  public LongParser(long item) {
-    this.item = item;
-  }
-
   @Override
   public byte[] toLengthEncodedBytes() throws IOException {
     return StringParser.getLengthEncodedBytes(Long.toString(item));
