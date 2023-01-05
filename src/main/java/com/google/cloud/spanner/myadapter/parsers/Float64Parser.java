@@ -20,37 +20,14 @@ import java.io.IOException;
 
 /** Translate from wire protocol to long and vice versa. */
 @InternalApi
-public class LongParser extends Parser<Long> {
+public class Float64Parser extends Parser<Double> {
 
-  LongParser(ResultSet item, int position) {
-    this.item = item.getLong(position);
+  Float64Parser(ResultSet item, int position) {
+    this.item = item.getDouble(position);
   }
 
   @Override
   public byte[] toLengthEncodedBytes() throws IOException {
-    return StringParser.getLengthEncodedBytes(Long.toString(item));
-  }
-
-  public static byte[] getLengthEncodedBytes(long value) {
-    byte[] bytes;
-    if (value < 251) {
-      bytes = new byte[]{(byte) value};
-    } else if (value < (1L << 16)) {
-      bytes = new byte[3];
-      bytes[0] = (byte) 0xFC;
-    } else if (value < (1L << 24)) {
-      bytes = new byte[4];
-      bytes[0] = (byte) 0xFD;
-    } else {
-      bytes = new byte[9];
-      bytes[0] = (byte) 0xFE;
-    }
-
-    for (int i = 1; i < bytes.length; ++i) {
-      bytes[i] = (byte) (value & 255);
-      value = value >> 8;
-    }
-
-    return bytes;
+    return StringParser.getLengthEncodedBytes(Double.toString(item));
   }
 }

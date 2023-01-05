@@ -14,9 +14,13 @@
 
 package com.google.cloud.spanner.myadapter.utils;
 
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DOUBLE;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_LONGLONG;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_TINY;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_VAR_STRING;
+
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.myadapter.ProxyServer.DataFormat;
 import com.google.cloud.spanner.myadapter.parsers.Parser;
 import com.google.cloud.spanner.myadapter.parsers.Parser.FormatCode;
 import java.io.ByteArrayOutputStream;
@@ -24,12 +28,48 @@ import java.io.IOException;
 
 /** Utility class for converting between generic MySQL conversions. */
 public class Converter {
-  private final ResultSet resultSet;
-  private final DataFormat dataFormat;
 
-  public Converter(ResultSet resultSet, DataFormat dataFormat) {
-    this.resultSet = resultSet;
-    this.dataFormat = dataFormat;
+  public enum MySqlFieldTypes {
+    MYSQL_TYPE_DECIMAL(0),
+    MYSQL_TYPE_TINY(1),
+    MYSQL_TYPE_SHORT(2),
+    MYSQL_TYPE_LONG(3),
+    MYSQL_TYPE_FLOAT(4),
+    MYSQL_TYPE_DOUBLE(5),
+    MYSQL_TYPE_NULL(6),
+    MYSQL_TYPE_TIMESTAMP(7),
+    MYSQL_TYPE_LONGLONG(8),
+    MYSQL_TYPE_INT24(9),
+    MYSQL_TYPE_DATE(10),
+    MYSQL_TYPE_TIME(11),
+    MYSQL_TYPE_DATETIME(12),
+    MYSQL_TYPE_YEAR(13),
+    MYSQL_TYPE_NEWDATE(14),
+    MYSQL_TYPE_VARCHAR(15),
+    MYSQL_TYPE_BIT(16),
+    MYSQL_TYPE_TIMESTAMP2(17),
+    MYSQL_TYPE_DATETIME2(18),
+    MYSQL_TYPE_TIME2(19),
+    MYSQL_TYPE_TYPED_ARRAY(20),
+    MYSQL_TYPE_INVALID(243),
+    MYSQL_TYPE_BOOL(244),
+    MYSQL_TYPE_JSON(245),
+    MYSQL_TYPE_NEWDECIMAL(246),
+    MYSQL_TYPE_ENUM(247),
+    MYSQL_TYPE_SET(248),
+    MYSQL_TYPE_TINY_BLOB(249),
+    MYSQL_TYPE_MEDIUM_BLOB(250),
+    MYSQL_TYPE_LONG_BLOB(251),
+    MYSQL_TYPE_BLOB(252),
+    MYSQL_TYPE_VAR_STRING(253),
+    MYSQL_TYPE_STRING(254),
+    MYSQL_TYPE_GEOMETRY(255);
+
+    int type;
+
+    MySqlFieldTypes(int type) {
+      this.type = type;
+    }
   }
 
   public static byte[] convertResultSetRowToDataRowResponse(ResultSet resultSet)
@@ -45,11 +85,13 @@ public class Converter {
   public static byte convertToMySqlCode(Type spannerType) {
     switch (spannerType.getCode()) {
       case BOOL:
-        return (byte) 1;
+        return (byte) MYSQL_TYPE_TINY.type;
       case INT64:
-        return (byte) 3;
+        return (byte) MYSQL_TYPE_LONGLONG.type;
       case STRING:
-        return (byte) 253;
+        return (byte) MYSQL_TYPE_VAR_STRING.type;
+      case FLOAT64:
+        return (byte) MYSQL_TYPE_DOUBLE.type;
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + spannerType);
     }

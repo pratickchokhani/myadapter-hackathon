@@ -51,6 +51,9 @@ public abstract class Parser<T> {
         return new LongParser(result, columnarPosition);
       case STRING:
         return new StringParser(result, columnarPosition);
+      case FLOAT64:
+        return new Float64Parser(result, columnarPosition);
+
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + type);
     }

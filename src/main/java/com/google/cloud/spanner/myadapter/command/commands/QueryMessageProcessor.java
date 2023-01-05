@@ -76,8 +76,9 @@ public class QueryMessageProcessor extends MessageProcessor {
             processResultSet(statementResult.getResultSet());
             break;
           case UPDATE_COUNT:
-            new OkResponse(currentSequenceNumber, connectionMetadata,
-                statementResult.getUpdateCount()).send(true);
+            new OkResponse(
+                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                .send(true);
             break;
           case NO_RESULT:
             new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
@@ -99,9 +100,7 @@ public class QueryMessageProcessor extends MessageProcessor {
     while (resultSet.next()) {
       rowSent = sendResultSetRow(resultSet, rowSent);
     }
-    currentSequenceNumber =
-        new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
-
+    currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
   private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {
