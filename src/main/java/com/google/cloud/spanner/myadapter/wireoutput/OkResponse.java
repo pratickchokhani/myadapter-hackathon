@@ -15,20 +15,25 @@
 package com.google.cloud.spanner.myadapter.wireoutput;
 
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.parsers.LongParser;
+import com.google.cloud.spanner.myadapter.parsers.Parser;
+import com.google.cloud.spanner.myadapter.parsers.Parser.FormatCode;
 import java.io.IOException;
 
 public class OkResponse extends WireOutput {
-  public OkResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata)
+
+  public OkResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata,
+      long updateCount)
       throws IOException {
     super(currentSequenceNumber, connectionMetadata);
 
-    byte[] okIdentifier = new byte[] {0x00};
+    byte[] okIdentifier = new byte[]{0x00};
     writePayload(okIdentifier);
 
-    byte[] affectedRows = new byte[] {0x00};
+    byte[] affectedRows = LongParser.getLengthEncodedBytes(updateCount);
     writePayload(affectedRows);
 
-    byte[] lastInsertId = new byte[] {0x00};
+    byte[] lastInsertId = new byte[]{0x00};
     writePayload(lastInsertId);
 
     byte[] serverStatus = {(byte) 2, (byte) 0};
@@ -36,6 +41,11 @@ public class OkResponse extends WireOutput {
 
     byte[] warnings = {(byte) 0, (byte) 0};
     writePayload(warnings);
+  }
+
+  public OkResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata)
+      throws IOException {
+    this(currentSequenceNumber, connectionMetadata, 0);
   }
 
   @Override
