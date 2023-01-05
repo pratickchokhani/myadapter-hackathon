@@ -22,6 +22,7 @@ import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
+import com.google.cloud.spanner.myadapter.utils.Converter;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnCountResponse;
@@ -58,7 +59,8 @@ public class QueryMessageProcessor extends MessageProcessor {
     currentSequenceNumber = queryMessage.getMessageSequenceNumber();
 
     for (Statement originalStatement : statements) {
-      logger.log(Level.INFO,
+      logger.log(
+          Level.INFO,
           () -> String.format("SQL query being processed: %s.", originalStatement.getSql()));
       if (QueryTranslator.bypassQuery(originalStatement.getSql())) {
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
@@ -100,11 +102,26 @@ public class QueryMessageProcessor extends MessageProcessor {
   private void sendColumnDefinitions(ResultSet resultSet) throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
+      ColumnDefinitionResponse.Builder builder =
+          new ColumnDefinitionResponse.Builder(currentSequenceNumber, connectionMetadata);
+      // TODO : Assess how does fields like schema, table, originalTable affects the client, and
+      // properly populate them.
       currentSequenceNumber =
-          new ColumnDefinitionResponse(currentSequenceNumber, connectionMetadata, resultSet, i)
+          builder
+              .schema("schemaName")
+              .table("tableName")
+              .originalTable("oTableName")
+              .column(resultSet.getMetadata().getRowType().getFields(i).getName())
+              .originalColumn("originalColumnName")
+              .charset(UTF8_MB4)
+              .maxColumnLength(20)
+              .columnType(Converter.convertToMySqlCode(resultSet.getColumnType(i)))
+              .columnDefinitionFlags(0)
+              .decimals(0)
+              .build()
               .send();
     }
   }

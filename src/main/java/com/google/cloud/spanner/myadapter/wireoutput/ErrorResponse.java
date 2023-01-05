@@ -22,18 +22,18 @@ import java.io.IOException;
 
 public class ErrorResponse extends WireOutput {
 
-  public ErrorResponse(int currentSequenceNumber, ConnectionMetadata connectionMetadata,
-      String message, int code)
+  public ErrorResponse(
+      int currentSequenceNumber, ConnectionMetadata connectionMetadata, String message, int code)
       throws IOException {
     super(currentSequenceNumber, connectionMetadata);
 
-    byte[] errorIdentifier = new byte[]{(byte) 255};
+    byte[] errorIdentifier = new byte[] {(byte) 255};
     writePayload(errorIdentifier);
 
     byte[] errorCode = ParserHelper.trailing2bytes(code);
     writePayload(errorCode);
 
-    byte[] sqlState = new byte[]{0x23, 0x34, 0x32, 0x30, 0x30, 0x30};
+    byte[] sqlState = new byte[] {0x23, 0x34, 0x32, 0x30, 0x30, 0x30};
     writePayload(sqlState);
 
     byte[] errorMessage = new StringParser(message).parse(FormatCode.LENGTH_ENCODED);

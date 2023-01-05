@@ -21,6 +21,6 @@ public class ParserHelper {
   }
 
   public static byte[] trailing2bytes(int code) {
-    return new byte[]{(byte) (code & 0xff),(byte) (code >> 8 & 0xff)};
+    return new byte[] {(byte) (code & 0xff), (byte) (code >> 8 & 0xff)};
   }
 }
