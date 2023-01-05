@@ -15,6 +15,7 @@
 package com.google.cloud.spanner.myadapter;
 
 import com.google.api.core.InternalApi;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.connection.Connection;
 import com.google.cloud.spanner.myadapter.error.MyException;
@@ -72,7 +73,9 @@ public class ConnectionHandler extends Thread {
     this(server, socket, null);
   }
 
-  /** Constructor only for testing. */
+  /**
+   * Constructor only for testing.
+   */
   @VisibleForTesting
   ConnectionHandler(ProxyServer server, Socket socket, Connection spannerConnection) {
     super("ConnectionHandler-" + CONNECTION_HANDLER_ID_GENERATOR.incrementAndGet());
@@ -143,10 +146,33 @@ public class ConnectionHandler extends Thread {
               String.format(
                   "Exception on connection handler with ID %s for client %s: %s",
                   getName(), socket.getInetAddress().getHostAddress(), e));
+    } finally {
+      if (sessionState.getProtocolStatus() != ProtocolStatus.RESTART_WITH_SSL) {
+        logger.log(
+            Level.INFO, () -> String.format("Closing connection handler with ID %s", getName()));
+        try {
+          if (this.backendConnection != null) {
+            this.backendConnection.terminate();
+          }
+          this.socket.close();
+        } catch (SpannerException | IOException e) {
+          logger.log(
+              Level.WARNING,
+              e,
+              () ->
+                  String.format(
+                      "Exception while closing connection handler with ID %s", getName()));
+        }
+        this.server.deregister(this);
+        logger.log(
+            Level.INFO, () -> String.format("Connection handler with ID %s closed", getName()));
+      }
     }
   }
 
-  /** Called when a Terminate message is received. This closes this {@link ConnectionHandler}. */
+  /**
+   * Called when a Terminate message is received. This closes this {@link ConnectionHandler}.
+   */
   public void handleTerminate() {
     synchronized (this) {
       backendConnection.terminate();

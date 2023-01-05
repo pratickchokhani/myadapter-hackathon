@@ -24,6 +24,7 @@ import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
+import com.google.cloud.spanner.myadapter.wireinput.TerminateMessage;
 
 public class CommandHandler {
 
@@ -62,5 +63,14 @@ public class CommandHandler {
 
   public void processMessage(QueryMessage queryMessage) throws Exception {
     queryMessageProcessor.processMessage(queryMessage);
+  }
+
+  public void processMessage(TerminateMessage terminateMessage) throws Exception {
+    // TO-DO destroy any threads that is created.
+    sessionState.setProtocolStatus(ProtocolStatus.TERMINATED);
+  }
+
+  public void terminate() {
+    // TO-DO Destroup all the threads
   }
 }

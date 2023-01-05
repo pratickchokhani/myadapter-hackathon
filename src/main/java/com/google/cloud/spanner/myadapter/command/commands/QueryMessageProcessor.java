@@ -27,6 +27,7 @@ import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnCountResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.ColumnDefinitionResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.EofResponse;
+import com.google.cloud.spanner.myadapter.wireoutput.ErrorResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.OkResponse;
 import com.google.cloud.spanner.myadapter.wireoutput.RowResponse;
 import com.google.common.base.Preconditions;
@@ -78,7 +79,8 @@ public class QueryMessageProcessor extends MessageProcessor {
             new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
       } catch (Exception e) {
         logger.log(Level.WARNING, e, () -> "Query execution error.");
-        new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+        new ErrorResponse(currentSequenceNumber, connectionMetadata, e.getMessage(), 1064)
+            .send(true);
         // Stop further processing if an exception occurs.
         break;
       }

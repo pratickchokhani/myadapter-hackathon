@@ -19,4 +19,8 @@ public class ParserHelper {
   public static int parse3ByteInt(int firstByte, int secondByte, int thirdByte) {
     return firstByte + (secondByte << 8) + (thirdByte << 16);
   }
+
+  public static byte[] trailing2bytes(int code) {
+    return new byte[]{(byte) (code & 0xff),(byte) (code >> 8 & 0xff)};
+  }
 }
