@@ -16,7 +16,6 @@ package com.google.cloud.spanner.myadapter.parsers;
 
 import com.google.cloud.spanner.ResultSet;
 import java.io.IOException;
-import org.postgresql.util.ByteConverter;
 
 /** Translate from wire protocol to int and vice versa */
 public class IntegerParser extends Parser<Integer> {
@@ -27,7 +26,10 @@ public class IntegerParser extends Parser<Integer> {
 
   public static byte[] binaryParse(int value) {
     byte[] result = new byte[4];
-    ByteConverter.int4(result, 0, value);
+    for (int i = 0; i < 4; ++i) {
+      result[i] = (byte) (value & 255);
+      value >>= 8;
+    }
     return result;
   }
 
