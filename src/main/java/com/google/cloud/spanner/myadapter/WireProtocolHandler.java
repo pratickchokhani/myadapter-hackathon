@@ -52,16 +52,19 @@ public class WireProtocolHandler {
   }
 
   public void run() throws Exception {
-    commandHandler.processMessage(ServerHandshakeMessage.getInstance());
-    while (sessionState.getProtocolStatus() != ProtocolStatus.TERMINATED) {
-      processNextMessage();
-      if (sessionState.getProtocolStatus() == ProtocolStatus.AUTHENTICATED) {
-        System.out.println("connecting to spanner");
-        backendConnection.connectToSpanner("test", null);
-        sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
+    try {
+      commandHandler.processMessage(ServerHandshakeMessage.getInstance());
+      while (sessionState.getProtocolStatus() != ProtocolStatus.TERMINATED) {
+        processNextMessage();
+        if (sessionState.getProtocolStatus() == ProtocolStatus.AUTHENTICATED) {
+          System.out.println("connecting to spanner");
+          backendConnection.connectToSpanner("test", null);
+          sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
+        }
       }
+    } finally {
+      terminate();
     }
-    destroy();
   }
 
   private void processNextMessage() throws Exception {
@@ -99,8 +102,9 @@ public class WireProtocolHandler {
     }
   }
 
-  private void destroy() {
+  private void terminate() {
     // TO-DO Destroy any thread.
+    commandHandler.terminate();
   }
 
   private HeaderMessage parseHeaderMessage(ConnectionMetadata connectionMetadata)

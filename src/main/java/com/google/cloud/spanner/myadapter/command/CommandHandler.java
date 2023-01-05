@@ -69,4 +69,8 @@ public class CommandHandler {
     // TO-DO destroy any threads that is created.
     sessionState.setProtocolStatus(ProtocolStatus.TERMINATED);
   }
+
+  public void terminate() {
+    // TO-DO Destroup all the threads
+  }
 }
