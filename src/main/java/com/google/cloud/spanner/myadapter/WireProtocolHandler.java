@@ -21,6 +21,7 @@ import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.HeaderMessage;
+import com.google.cloud.spanner.myadapter.wireinput.PingMessage;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.TerminateMessage;
@@ -91,6 +92,11 @@ public class WireProtocolHandler {
         logger.log(Level.FINE, "Query received!");
         QueryMessage queryMessage = new QueryMessage(headerMessage);
         commandHandler.processMessage(queryMessage);
+        break;
+      case PingMessage.IDENTIFIER:
+        logger.log(Level.FINE, "Ping received!");
+        PingMessage pingMessage = new PingMessage(headerMessage);
+        commandHandler.processMessage(pingMessage);
         break;
       case TerminateMessage.IDENTIFIER:
         logger.log(Level.INFO, "Terminate message received.");

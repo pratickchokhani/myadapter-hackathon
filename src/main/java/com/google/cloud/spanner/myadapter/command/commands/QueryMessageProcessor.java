@@ -69,8 +69,7 @@ public class QueryMessageProcessor extends MessageProcessor {
       try {
         logger.log(Level.INFO, () -> "Executing query.");
 
-        StatementResult statementResult =
-            backendConnection.getSpannerConnection().execute(originalStatement);
+        StatementResult statementResult = backendConnection.executeQuery(originalStatement);
         switch (statementResult.getResultType()) {
           case RESULT_SET:
             processResultSet(statementResult.getResultSet());

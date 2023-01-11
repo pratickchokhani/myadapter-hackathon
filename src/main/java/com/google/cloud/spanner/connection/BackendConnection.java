@@ -23,6 +23,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.InstanceNotFoundException;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
@@ -110,8 +111,8 @@ public class BackendConnection {
     this.databaseId = connectionOptions.getDatabaseId();
   }
 
-  public Connection getSpannerConnection() {
-    return spannerConnection;
+  public StatementResult executeQuery(Statement originalStatement) {
+    return spannerConnection.execute(originalStatement);
   }
 
   public void terminate() {

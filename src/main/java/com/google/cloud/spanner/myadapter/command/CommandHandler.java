@@ -16,12 +16,14 @@ package com.google.cloud.spanner.myadapter.command;
 
 import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.myadapter.command.commands.ClientHandShakeMessageProcessor;
+import com.google.cloud.spanner.myadapter.command.commands.PingMessageProcessor;
 import com.google.cloud.spanner.myadapter.command.commands.QueryMessageProcessor;
 import com.google.cloud.spanner.myadapter.command.commands.ServerGreetingsMessage;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
+import com.google.cloud.spanner.myadapter.wireinput.PingMessage;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.TerminateMessage;
@@ -35,6 +37,7 @@ public class CommandHandler {
   private final ServerGreetingsMessage serverGreetingsMessage;
   private final ClientHandShakeMessageProcessor clientHandShakeMessageProcessor;
   private final QueryMessageProcessor queryMessageProcessor;
+  private final PingMessageProcessor pingMessage;
 
   public CommandHandler(
       ConnectionMetadata connectionMetadata,
@@ -49,6 +52,7 @@ public class CommandHandler {
         new ClientHandShakeMessageProcessor(connectionMetadata, sessionState);
     this.queryMessageProcessor =
         new QueryMessageProcessor(connectionMetadata, sessionState, backendConnection);
+    this.pingMessage = new PingMessageProcessor(connectionMetadata, sessionState);
   }
 
   public void processMessage(ServerHandshakeMessage serverHandshakeMessage) throws Exception {
@@ -63,6 +67,10 @@ public class CommandHandler {
 
   public void processMessage(QueryMessage queryMessage) throws Exception {
     queryMessageProcessor.processMessage(queryMessage);
+  }
+
+  public void processMessage(PingMessage pingMessage) throws Exception {
+    queryMessageProcessor.processMessage(pingMessage);
   }
 
   public void processMessage(TerminateMessage terminateMessage) throws Exception {
