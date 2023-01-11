@@ -14,9 +14,11 @@
 
 package com.google.cloud.spanner.myadapter.utils;
 
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_BLOB;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DATE;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DATETIME;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DOUBLE;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_LONGLONG;
-import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_TINY;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_VAR_STRING;
 
 import com.google.cloud.spanner.ResultSet;
@@ -84,14 +86,18 @@ public class Converter {
 
   public static byte convertToMySqlCode(Type spannerType) {
     switch (spannerType.getCode()) {
-      case BOOL:
-        return (byte) MYSQL_TYPE_TINY.type;
       case INT64:
         return (byte) MYSQL_TYPE_LONGLONG.type;
       case STRING:
         return (byte) MYSQL_TYPE_VAR_STRING.type;
       case FLOAT64:
         return (byte) MYSQL_TYPE_DOUBLE.type;
+      case BYTES:
+        return (byte) MYSQL_TYPE_BLOB.type;
+      case DATE:
+        return (byte) MYSQL_TYPE_DATE.type;
+      case TIMESTAMP:
+        return (byte) MYSQL_TYPE_DATETIME.type;
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + spannerType);
     }

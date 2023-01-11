@@ -25,13 +25,13 @@ public class OkResponse extends WireOutput {
       throws IOException {
     super(currentSequenceNumber, connectionMetadata);
 
-    byte[] okIdentifier = new byte[]{0x00};
+    byte[] okIdentifier = new byte[] {0x00};
     writePayload(okIdentifier);
 
     byte[] affectedRows = LongParser.getLengthEncodedBytes(updateCount);
     writePayload(affectedRows);
 
-    byte[] lastInsertId = new byte[]{0x00};
+    byte[] lastInsertId = new byte[] {0x00};
     writePayload(lastInsertId);
 
     byte[] serverStatus = {(byte) 2, (byte) 0};

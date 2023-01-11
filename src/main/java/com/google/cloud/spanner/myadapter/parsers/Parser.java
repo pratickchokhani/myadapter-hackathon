@@ -45,14 +45,18 @@ public abstract class Parser<T> {
    */
   public static Parser<?> create(ResultSet result, Type type, int columnarPosition) {
     switch (type.getCode()) {
-      case BOOL:
-        return new BooleanParser(result, columnarPosition);
       case INT64:
         return new LongParser(result, columnarPosition);
       case STRING:
         return new StringParser(result, columnarPosition);
       case FLOAT64:
         return new Float64Parser(result, columnarPosition);
+      case BYTES:
+        return new BinaryParser(result, columnarPosition);
+      case DATE:
+        return new DateParser(result, columnarPosition);
+      case TIMESTAMP:
+        return new TimestampParser(result, columnarPosition);
 
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + type);
