@@ -57,6 +57,10 @@ public abstract class Parser<T> {
         return new DateParser(result, columnarPosition);
       case TIMESTAMP:
         return new TimestampParser(result, columnarPosition);
+      case NUMERIC:
+        return new NumericParser(result, columnarPosition);
+      case JSON:
+        return new JsonParser(result, columnarPosition);
 
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + type);
