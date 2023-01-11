@@ -16,6 +16,7 @@ package com.google.cloud.spanner.myadapter.command.commands;
 
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Type.Code;
 import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
@@ -76,8 +77,9 @@ public class QueryMessageProcessor extends MessageProcessor {
             processResultSet(statementResult.getResultSet());
             break;
           case UPDATE_COUNT:
-            new OkResponse(currentSequenceNumber, connectionMetadata,
-                statementResult.getUpdateCount()).send(true);
+            new OkResponse(
+                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                .send(true);
             break;
           case NO_RESULT:
             new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
@@ -129,7 +131,10 @@ public class QueryMessageProcessor extends MessageProcessor {
               .originalTable("oTableName")
               .column(resultSet.getMetadata().getRowType().getFields(i).getName())
               .originalColumn("originalColumnName")
-              .charset(UTF8_MB4)
+              .charset(
+                  resultSet.getColumnType(i).getCode() == Code.BYTES
+                      ? CHARSET_BINARY
+                      : CHARSET_UTF8_MB4)
               .maxColumnLength(20)
               .columnType(Converter.convertToMySqlCode(resultSet.getColumnType(i)))
               .columnDefinitionFlags(0)
