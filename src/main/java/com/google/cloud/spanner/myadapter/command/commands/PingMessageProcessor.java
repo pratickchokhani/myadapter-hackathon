@@ -18,7 +18,6 @@ import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
 import com.google.cloud.spanner.myadapter.wireoutput.OkResponse;
-import com.google.cloud.spanner.myadapter.wireoutput.ServerGreetingResponse;
 
 public class PingMessageProcessor extends MessageProcessor {
 

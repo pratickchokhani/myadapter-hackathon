@@ -75,8 +75,9 @@ public class QueryMessageProcessor extends MessageProcessor {
             processResultSet(statementResult.getResultSet());
             break;
           case UPDATE_COUNT:
-            new OkResponse(currentSequenceNumber, connectionMetadata,
-                statementResult.getUpdateCount()).send(true);
+            new OkResponse(
+                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                .send(true);
             break;
           case NO_RESULT:
             new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
