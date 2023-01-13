@@ -17,7 +17,9 @@ package com.google.cloud.spanner.myadapter.utils;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_BLOB;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DATE;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DATETIME;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DECIMAL;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DOUBLE;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_JSON;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_LONGLONG;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_VAR_STRING;
 
@@ -98,6 +100,10 @@ public class Converter {
         return (byte) MYSQL_TYPE_DATE.type;
       case TIMESTAMP:
         return (byte) MYSQL_TYPE_DATETIME.type;
+      case NUMERIC:
+        return (byte) MYSQL_TYPE_DECIMAL.type;
+      case JSON:
+        return (byte) MYSQL_TYPE_JSON.type;
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + spannerType);
     }
