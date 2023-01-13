@@ -30,12 +30,13 @@ public class QueryTranslator {
 
   public QueryTranslator(OptionsMetadata optionsMetadata) {
     this.queryReplacementConfig = optionsMetadata.getQueryReplacementConfig();
-    this.completeMatcherQueryTranslatorMap = queryReplacementConfig.getCompleteMatcherReplacementMap();
+    this.completeMatcherQueryTranslatorMap =
+        queryReplacementConfig.getCompleteMatcherReplacementMap();
   }
 
-  public QueryReplacement translatedQuery(ParsedStatement parsedStatement,
-      Statement originalStatement) {
-    return completeMatcherQueryTranslatorMap.getOrDefault(parsedStatement.getSqlWithoutComments(),
-        new QueryReplacement(originalStatement));
+  public QueryReplacement translatedQuery(
+      ParsedStatement parsedStatement, Statement originalStatement) {
+    return completeMatcherQueryTranslatorMap.getOrDefault(
+        parsedStatement.getSqlWithoutComments(), new QueryReplacement(originalStatement));
   }
 }

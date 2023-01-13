@@ -46,10 +46,11 @@ public class WireProtocolHandler {
   public WireProtocolHandler(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection, OptionsMetadata optionsMetadata) {
+      BackendConnection backendConnection,
+      OptionsMetadata optionsMetadata) {
     this.backendConnection = backendConnection;
-    this.commandHandler = new CommandHandler(connectionMetadata, sessionState, backendConnection,
-        optionsMetadata);
+    this.commandHandler =
+        new CommandHandler(connectionMetadata, sessionState, backendConnection, optionsMetadata);
     this.connectionMetadata = connectionMetadata;
     this.sessionState = sessionState;
   }

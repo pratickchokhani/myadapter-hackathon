@@ -59,7 +59,8 @@ public class QueryMessageProcessor extends MessageProcessor {
   public QueryMessageProcessor(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection, OptionsMetadata optionsMetadata) {
+      BackendConnection backendConnection,
+      OptionsMetadata optionsMetadata) {
     super(connectionMetadata, sessionState);
     this.backendConnection = backendConnection;
     this.queryTranslator = new QueryTranslator(optionsMetadata);
@@ -77,22 +78,22 @@ public class QueryMessageProcessor extends MessageProcessor {
           Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
 
       ParsedStatement parsedStatement = PARSER.parse(originalStatement);
-      QueryReplacement queryReplacement = queryTranslator.translatedQuery(parsedStatement,
-          originalStatement);
+      QueryReplacement queryReplacement =
+          queryTranslator.translatedQuery(parsedStatement, originalStatement);
       if (queryReplacement.getAction() == QueryAction.RETURN_OK) {
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
       try {
-        StatementResult statementResult = backendConnection.executeQuery(
-            queryReplacement.getOutputQuery());
+        StatementResult statementResult =
+            backendConnection.executeQuery(queryReplacement.getOutputQuery());
         switch (statementResult.getResultType()) {
           case RESULT_SET:
             processResultSet(statementResult.getResultSet(), queryReplacement);
             break;
           case UPDATE_COUNT:
             new OkResponse(
-                currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
                 .send(true);
             break;
           case NO_RESULT:
@@ -134,7 +135,7 @@ public class QueryMessageProcessor extends MessageProcessor {
       throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
       ColumnDefinitionResponse.Builder builder =
@@ -146,8 +147,9 @@ public class QueryMessageProcessor extends MessageProcessor {
               .schema("schemaName")
               .table("tableName")
               .originalTable("oTableName")
-              .column(queryReplacement.overrideColumn(
-                  resultSet.getMetadata().getRowType().getFields(i).getName()))
+              .column(
+                  queryReplacement.overrideColumn(
+                      resultSet.getMetadata().getRowType().getFields(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
                   resultSet.getColumnType(i).getCode() == Code.BYTES

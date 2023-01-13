@@ -43,7 +43,8 @@ public class CommandHandler {
   public CommandHandler(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection, OptionsMetadata optionsMetadata) {
+      BackendConnection backendConnection,
+      OptionsMetadata optionsMetadata) {
     this.connectionMetadata = connectionMetadata;
     this.sessionState = sessionState;
     this.backendConnection = backendConnection;
@@ -52,8 +53,8 @@ public class CommandHandler {
     this.clientHandShakeMessageProcessor =
         new ClientHandShakeMessageProcessor(connectionMetadata, sessionState);
     this.queryMessageProcessor =
-        new QueryMessageProcessor(connectionMetadata, sessionState, backendConnection,
-            optionsMetadata);
+        new QueryMessageProcessor(
+            connectionMetadata, sessionState, backendConnection, optionsMetadata);
     this.pingMessageProcessor = new PingMessageProcessor(connectionMetadata, sessionState);
   }
 

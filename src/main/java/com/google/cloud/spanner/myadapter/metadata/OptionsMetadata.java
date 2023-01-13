@@ -42,35 +42,25 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-/**
- * Metadata extractor for CLI.
- */
+/** Metadata extractor for CLI. */
 public class OptionsMetadata {
 
-  /**
-   * Returns true if the current JVM is Java 8.
-   */
+  /** Returns true if the current JVM is Java 8. */
   public static boolean isJava8() {
     return System.getProperty("java.version").startsWith("1.8");
   }
 
   public enum SslMode {
-    /**
-     * Disables SSL connections. This is the default.
-     */
+    /** Disables SSL connections. This is the default. */
     Disable {
       @Override
       public boolean isSslEnabled() {
         return false;
       }
     },
-    /**
-     * Enables SSL connections. Requires a valid key store to be configured.
-     */
+    /** Enables SSL connections. Requires a valid key store to be configured. */
     Enable,
-    /**
-     * Requires SSL connections. Non-SSL connections will be rejected.
-     */
+    /** Requires SSL connections. Non-SSL connections will be rejected. */
     Require;
 
     public boolean isSslEnabled() {
@@ -106,7 +96,8 @@ public class OptionsMetadata {
   private static final String DEFAULT_USER_AGENT = "pg-adapter";
 
   private static final String QUERY_TRANSLATOR_FILE_PATH = "j";
-  private static final String DEFAULT_QUERY_TRANSLATOR_FILE = "metadata/unsupported_query_replacement.json";
+  private static final String DEFAULT_QUERY_TRANSLATOR_FILE =
+      "metadata/unsupported_query_replacement.json";
 
   private static final String OPTION_SERVER_PORT = "s";
   private static final String OPTION_SOCKET_DIR = "dir";
@@ -152,7 +143,7 @@ public class OptionsMetadata {
     this.commandLine = buildOptions(args);
     if (this.commandLine.hasOption(OPTION_DATABASE_NAME)
         && !(this.commandLine.hasOption(OPTION_PROJECT_ID)
-        && this.commandLine.hasOption(OPTION_INSTANCE_ID))) {
+            && this.commandLine.hasOption(OPTION_INSTANCE_ID))) {
       throw SpannerExceptionFactory.newSpannerException(
           ErrorCode.INVALID_ARGUMENT,
           "Cannot specify a database ID without also specifying a project ID and instance ID. "
@@ -296,7 +287,8 @@ public class OptionsMetadata {
 
   private String getQueryTranslatorFilePath() {
     final String commandMetadataFileName = commandLine.getOptionValue(QUERY_TRANSLATOR_FILE_PATH);
-    return commandMetadataFileName == null ? DEFAULT_QUERY_TRANSLATOR_FILE
+    return commandMetadataFileName == null
+        ? DEFAULT_QUERY_TRANSLATOR_FILE
         : commandMetadataFileName;
   }
 
@@ -362,9 +354,7 @@ public class OptionsMetadata {
     return url;
   }
 
-  /**
-   * Returns the fully qualified database name based on the given database id or name.
-   */
+  /** Returns the fully qualified database name based on the given database id or name. */
   public DatabaseName getDatabaseName(String database) {
     DatabaseName databaseName;
     if (DatabaseName.isParsableFrom(database)) {
@@ -509,8 +499,7 @@ public class OptionsMetadata {
     }
   }
 
-  static void printDeprecatedWarnings(CommandLine commandLine) {
-  }
+  static void printDeprecatedWarnings(CommandLine commandLine) {}
 
   public boolean isDebugMode() {
     return this.debugMode;
@@ -527,34 +516,28 @@ public class OptionsMetadata {
 
   /**
    * @return true if the server uses a default connection URL and ignores the database in a
-   * connection request
+   *     connection request
    */
   public boolean hasDefaultConnectionUrl() {
     return this.defaultConnectionUrl != null;
   }
 
-  /**
-   * Returns the id of the default database or null if no default has been selected.
-   */
+  /** Returns the id of the default database or null if no default has been selected. */
   public DatabaseId getDefaultDatabaseId() {
     return this.hasDefaultConnectionUrl()
         ? DatabaseId.of(
-        commandLine.getOptionValue(OPTION_PROJECT_ID),
-        commandLine.getOptionValue(OPTION_INSTANCE_ID),
-        commandLine.getOptionValue(OPTION_DATABASE_NAME))
+            commandLine.getOptionValue(OPTION_PROJECT_ID),
+            commandLine.getOptionValue(OPTION_INSTANCE_ID),
+            commandLine.getOptionValue(OPTION_DATABASE_NAME))
         : null;
   }
 
-  /**
-   * Returns true if these options contain a default instance id.
-   */
+  /** Returns true if these options contain a default instance id. */
   public boolean hasDefaultInstanceId() {
     return commandLine.hasOption(OPTION_PROJECT_ID) && commandLine.hasOption(OPTION_INSTANCE_ID);
   }
 
-  /**
-   * Returns the id of the default instance or null if no default has been selected.
-   */
+  /** Returns the id of the default instance or null if no default has been selected. */
   public InstanceId getDefaultInstanceId() {
     if (hasDefaultInstanceId()) {
       return InstanceId.of(
@@ -627,9 +610,7 @@ public class OptionsMetadata {
     }
   }
 
-  /**
-   * Returns true if the OS is Windows.
-   */
+  /** Returns true if the OS is Windows. */
   public boolean isWindows() {
     return osName.toLowerCase().startsWith("windows");
   }
