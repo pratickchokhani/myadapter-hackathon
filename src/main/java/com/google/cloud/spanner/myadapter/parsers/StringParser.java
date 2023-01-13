@@ -24,7 +24,11 @@ import java.io.IOException;
 public class StringParser extends Parser<String> {
 
   StringParser(ResultSet item, int position) {
-    this.item = item.getString(position);
+    if (!item.isNull(position)) {
+      this.item = item.getString(position);
+    } else {
+      this.item = null;
+    }
   }
 
   public StringParser(String item) {
@@ -36,9 +40,18 @@ public class StringParser extends Parser<String> {
   }
 
   public static byte[] getLengthEncodedBytes(String string) throws IOException {
+    long stringLength;
+    byte[] bytes;
+    if (string == null) {
+      stringLength = 0;
+      bytes = new byte[0];
+    } else {
+      stringLength = string.length();
+      bytes = string.getBytes();
+    }
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    outputStream.write(LongParser.getLengthEncodedBytes(string.length()));
-    outputStream.write(string.getBytes());
+    outputStream.write(LongParser.getLengthEncodedBytes(stringLength));
+    outputStream.write(bytes);
     return outputStream.toByteArray();
   }
 }
