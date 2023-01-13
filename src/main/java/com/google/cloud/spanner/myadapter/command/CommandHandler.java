@@ -20,6 +20,7 @@ import com.google.cloud.spanner.myadapter.command.commands.PingMessageProcessor;
 import com.google.cloud.spanner.myadapter.command.commands.QueryMessageProcessor;
 import com.google.cloud.spanner.myadapter.command.commands.ServerGreetingsMessage;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
@@ -37,12 +38,12 @@ public class CommandHandler {
   private final ServerGreetingsMessage serverGreetingsMessage;
   private final ClientHandShakeMessageProcessor clientHandShakeMessageProcessor;
   private final QueryMessageProcessor queryMessageProcessor;
-  private final PingMessageProcessor pingMessage;
+  private final PingMessageProcessor pingMessageProcessor;
 
   public CommandHandler(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection) {
+      BackendConnection backendConnection, OptionsMetadata optionsMetadata) {
     this.connectionMetadata = connectionMetadata;
     this.sessionState = sessionState;
     this.backendConnection = backendConnection;
@@ -51,8 +52,9 @@ public class CommandHandler {
     this.clientHandShakeMessageProcessor =
         new ClientHandShakeMessageProcessor(connectionMetadata, sessionState);
     this.queryMessageProcessor =
-        new QueryMessageProcessor(connectionMetadata, sessionState, backendConnection);
-    this.pingMessage = new PingMessageProcessor(connectionMetadata, sessionState);
+        new QueryMessageProcessor(connectionMetadata, sessionState, backendConnection,
+            optionsMetadata);
+    this.pingMessageProcessor = new PingMessageProcessor(connectionMetadata, sessionState);
   }
 
   public void processMessage(ServerHandshakeMessage serverHandshakeMessage) throws Exception {
@@ -70,7 +72,7 @@ public class CommandHandler {
   }
 
   public void processMessage(PingMessage pingMessage) throws Exception {
-    queryMessageProcessor.processMessage(pingMessage);
+    pingMessageProcessor.processMessage(pingMessage);
   }
 
   public void processMessage(TerminateMessage terminateMessage) throws Exception {

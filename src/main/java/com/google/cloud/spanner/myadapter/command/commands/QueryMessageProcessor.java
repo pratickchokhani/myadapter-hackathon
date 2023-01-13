@@ -14,15 +14,21 @@
 
 package com.google.cloud.spanner.myadapter.command.commands;
 
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.connection.AbstractStatementParser;
+import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.connection.BackendConnection;
+import com.google.cloud.spanner.connection.SpannerStatementParser;
 import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
+import com.google.cloud.spanner.myadapter.translator.TranslatedQuery;
 import com.google.cloud.spanner.myadapter.utils.Converter;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
@@ -40,17 +46,22 @@ import java.util.logging.Logger;
 
 public class QueryMessageProcessor extends MessageProcessor {
 
+  private static final SpannerStatementParser PARSER =
+      (SpannerStatementParser) AbstractStatementParser.getInstance(Dialect.GOOGLE_STANDARD_SQL);
+
   private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
 
   private int currentSequenceNumber = -1;
   private final BackendConnection backendConnection;
+  private final QueryTranslator queryTranslator;
 
   public QueryMessageProcessor(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection) {
+      BackendConnection backendConnection, OptionsMetadata optionsMetadata) {
     super(connectionMetadata, sessionState);
     this.backendConnection = backendConnection;
+    this.queryTranslator = new QueryTranslator(optionsMetadata);
   }
 
   @Override
@@ -60,24 +71,29 @@ public class QueryMessageProcessor extends MessageProcessor {
     currentSequenceNumber = queryMessage.getMessageSequenceNumber();
 
     for (Statement originalStatement : statements) {
+      final Statement statement = originalStatement;
       logger.log(
-          Level.INFO,
-          () -> String.format("SQL query being processed: %s.", originalStatement.getSql()));
+          Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
       if (QueryTranslator.bypassQuery(originalStatement.getSql())) {
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
+
+      ParsedStatement parsedStatement = PARSER.parse(originalStatement);
+      TranslatedQuery translatedQuery = queryTranslator.translatedQuery(parsedStatement,
+          originalStatement);
       try {
         logger.log(Level.INFO, () -> "Executing query.");
 
-        StatementResult statementResult = backendConnection.executeQuery(originalStatement);
+        StatementResult statementResult = backendConnection.executeQuery(
+            translatedQuery.getOutputQuery());
         switch (statementResult.getResultType()) {
           case RESULT_SET:
-            processResultSet(statementResult.getResultSet());
+            processResultSet(statementResult.getResultSet(), translatedQuery);
             break;
           case UPDATE_COUNT:
             new OkResponse(
-                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
                 .send(true);
             break;
           case NO_RESULT:
@@ -95,17 +111,19 @@ public class QueryMessageProcessor extends MessageProcessor {
     }
   }
 
-  private void processResultSet(ResultSet resultSet) throws Exception {
+  private void processResultSet(ResultSet resultSet, TranslatedQuery translatedQuery)
+      throws Exception {
     int rowSent = 0;
     while (resultSet.next()) {
-      rowSent = sendResultSetRow(resultSet, rowSent);
+      rowSent = sendResultSetRow(resultSet, rowSent, translatedQuery);
     }
     currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
-  private int sendResultSetRow(ResultSet resultSet, int rowsSent) throws Exception {
+  private int sendResultSetRow(ResultSet resultSet, int rowsSent, TranslatedQuery translatedQuery)
+      throws Exception {
     if (rowsSent == 0) {
-      sendColumnDefinitions(resultSet);
+      sendColumnDefinitions(resultSet, translatedQuery);
     }
     currentSequenceNumber =
         new RowResponse(currentSequenceNumber, connectionMetadata, resultSet).send();
@@ -113,10 +131,11 @@ public class QueryMessageProcessor extends MessageProcessor {
     return rowsSent;
   }
 
-  private void sendColumnDefinitions(ResultSet resultSet) throws IOException {
+  private void sendColumnDefinitions(ResultSet resultSet, TranslatedQuery translatedQuery)
+      throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
       ColumnDefinitionResponse.Builder builder =
@@ -128,7 +147,8 @@ public class QueryMessageProcessor extends MessageProcessor {
               .schema("schemaName")
               .table("tableName")
               .originalTable("oTableName")
-              .column(resultSet.getMetadata().getRowType().getFields(i).getName())
+              .column(translatedQuery.overrideColumn(
+                  resultSet.getMetadata().getRowType().getFields(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
                   resultSet.getColumnType(i).getCode() == Code.BYTES

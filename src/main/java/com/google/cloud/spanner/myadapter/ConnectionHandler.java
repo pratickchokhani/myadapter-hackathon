@@ -22,6 +22,7 @@ import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
@@ -62,6 +63,7 @@ public class ConnectionHandler extends Thread {
   private ConnectionMetadata connectionMetadata;
   private int sequenceNumber;
   private BackendConnection backendConnection;
+  private final OptionsMetadata options;
 
   public WireProtocolHandler getWireHandler() {
     return wireHandler;
@@ -89,8 +91,9 @@ public class ConnectionHandler extends Thread {
                 "Connection handler with ID %s created for client %s",
                 getName(), socket.getInetAddress().getHostAddress()));
     this.sessionState = new SessionState();
+    this.options = server.getOptions();
     this.backendConnection =
-        new BackendConnection(server.getOptions(), server.getProperties(), spannerConnection);
+        new BackendConnection(options, server.getProperties(), spannerConnection);
   }
 
   void createSSLSocket() throws IOException {
@@ -123,7 +126,7 @@ public class ConnectionHandler extends Thread {
         new ConnectionMetadata(this.socket.getInputStream(), this.socket.getOutputStream())) {
       this.connectionMetadata = connectionMetadata;
       this.wireHandler =
-          new WireProtocolHandler(connectionMetadata, sessionState, backendConnection);
+          new WireProtocolHandler(connectionMetadata, sessionState, backendConnection, options);
 
       try {
         wireHandler.run();
