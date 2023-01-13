@@ -14,18 +14,23 @@
 
 package com.google.cloud.spanner.myadapter.metadata;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.myadapter.translator.models.QueryReplacementConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 import com.google.spanner.v1.DatabaseName;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -95,12 +100,13 @@ public class OptionsMetadata {
     AutocommitExplicitTransaction,
   }
 
+  private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Logger logger = Logger.getLogger(OptionsMetadata.class.getName());
   private static final String DEFAULT_SERVER_VERSION = "8.0.31";
   private static final String DEFAULT_USER_AGENT = "pg-adapter";
 
   private static final String QUERY_TRANSLATOR_FILE_PATH = "j";
-  private static final String DEFAULT_QUERY_TRANSLATOR_FILE = "metadata/query_translator_file.json";
+  private static final String DEFAULT_QUERY_TRANSLATOR_FILE = "metadata/unsupported_query_replacement.json";
 
   private static final String OPTION_SERVER_PORT = "s";
   private static final String OPTION_SOCKET_DIR = "dir";
@@ -135,6 +141,8 @@ public class OptionsMetadata {
   private final String serverVersion;
   private final boolean debugMode;
 
+  private QueryReplacementConfig queryReplacementConfig;
+
   public OptionsMetadata(String[] args) {
     this(System.getProperty("os.name", ""), args);
   }
@@ -166,6 +174,8 @@ public class OptionsMetadata {
     this.disableLocalhostCheck = commandLine.hasOption(OPTION_DISABLE_LOCALHOST_CHECK);
     this.serverVersion = commandLine.getOptionValue(OPTION_SERVER_VERSION, DEFAULT_SERVER_VERSION);
     this.debugMode = commandLine.hasOption(OPTION_DEBUG_MODE);
+
+    this.queryReplacementConfig = parseQueryTranslatorFile(getQueryTranslatorFilePath());
   }
 
   public OptionsMetadata(String defaultConnectionUrl, int proxyPort) {
@@ -266,7 +276,25 @@ public class OptionsMetadata {
     return backlog;
   }
 
-  private String queryTranslatorFilePath(CommandLine commandLine) {
+  public QueryReplacementConfig getQueryReplacementConfig() {
+    return queryReplacementConfig;
+  }
+
+  @VisibleForTesting
+  private QueryReplacementConfig parseQueryTranslatorFile(String filePath) {
+    try {
+      return parse(this.getClass().getClassLoader().getResourceAsStream(filePath));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private QueryReplacementConfig parse(InputStream inputStream)
+      throws JsonIOException, JsonSyntaxException, IOException {
+    return objectMapper.readValue(inputStream, QueryReplacementConfig.class);
+  }
+
+  private String getQueryTranslatorFilePath() {
     final String commandMetadataFileName = commandLine.getOptionValue(QUERY_TRANSLATOR_FILE_PATH);
     return commandMetadataFileName == null ? DEFAULT_QUERY_TRANSLATOR_FILE
         : commandMetadataFileName;

@@ -28,7 +28,8 @@ import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
-import com.google.cloud.spanner.myadapter.translator.TranslatedQuery;
+import com.google.cloud.spanner.myadapter.translator.models.QueryAction;
+import com.google.cloud.spanner.myadapter.translator.models.QueryReplacement;
 import com.google.cloud.spanner.myadapter.utils.Converter;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
@@ -74,22 +75,20 @@ public class QueryMessageProcessor extends MessageProcessor {
       final Statement statement = originalStatement;
       logger.log(
           Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
-      if (QueryTranslator.bypassQuery(originalStatement.getSql())) {
+
+      ParsedStatement parsedStatement = PARSER.parse(originalStatement);
+      QueryReplacement queryReplacement = queryTranslator.translatedQuery(parsedStatement,
+          originalStatement);
+      if (queryReplacement.getAction() == QueryAction.RETURN_OK) {
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
-
-      ParsedStatement parsedStatement = PARSER.parse(originalStatement);
-      TranslatedQuery translatedQuery = queryTranslator.translatedQuery(parsedStatement,
-          originalStatement);
       try {
-        logger.log(Level.INFO, () -> "Executing query.");
-
         StatementResult statementResult = backendConnection.executeQuery(
-            translatedQuery.getOutputQuery());
+            queryReplacement.getOutputQuery());
         switch (statementResult.getResultType()) {
           case RESULT_SET:
-            processResultSet(statementResult.getResultSet(), translatedQuery);
+            processResultSet(statementResult.getResultSet(), queryReplacement);
             break;
           case UPDATE_COUNT:
             new OkResponse(
@@ -111,19 +110,19 @@ public class QueryMessageProcessor extends MessageProcessor {
     }
   }
 
-  private void processResultSet(ResultSet resultSet, TranslatedQuery translatedQuery)
+  private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
     int rowSent = 0;
     while (resultSet.next()) {
-      rowSent = sendResultSetRow(resultSet, rowSent, translatedQuery);
+      rowSent = sendResultSetRow(resultSet, rowSent, queryReplacement);
     }
     currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
-  private int sendResultSetRow(ResultSet resultSet, int rowsSent, TranslatedQuery translatedQuery)
+  private int sendResultSetRow(ResultSet resultSet, int rowsSent, QueryReplacement queryReplacement)
       throws Exception {
     if (rowsSent == 0) {
-      sendColumnDefinitions(resultSet, translatedQuery);
+      sendColumnDefinitions(resultSet, queryReplacement);
     }
     currentSequenceNumber =
         new RowResponse(currentSequenceNumber, connectionMetadata, resultSet).send();
@@ -131,7 +130,7 @@ public class QueryMessageProcessor extends MessageProcessor {
     return rowsSent;
   }
 
-  private void sendColumnDefinitions(ResultSet resultSet, TranslatedQuery translatedQuery)
+  private void sendColumnDefinitions(ResultSet resultSet, QueryReplacement queryReplacement)
       throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
@@ -147,7 +146,7 @@ public class QueryMessageProcessor extends MessageProcessor {
               .schema("schemaName")
               .table("tableName")
               .originalTable("oTableName")
-              .column(translatedQuery.overrideColumn(
+              .column(queryReplacement.overrideColumn(
                   resultSet.getMetadata().getRowType().getFields(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
