@@ -21,6 +21,7 @@ import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_DOUBLE;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_JSON;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_LONGLONG;
+import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_TINYINT;
 import static com.google.cloud.spanner.myadapter.utils.Converter.MySqlFieldTypes.MYSQL_TYPE_VAR_STRING;
 
 import com.google.cloud.spanner.ResultSet;
@@ -35,7 +36,7 @@ public class Converter {
 
   public enum MySqlFieldTypes {
     MYSQL_TYPE_DECIMAL(0),
-    MYSQL_TYPE_TINY(1),
+    MYSQL_TYPE_TINYINT(1),
     MYSQL_TYPE_SHORT(2),
     MYSQL_TYPE_LONG(3),
     MYSQL_TYPE_FLOAT(4),
@@ -88,6 +89,8 @@ public class Converter {
 
   public static byte convertToMySqlCode(Type spannerType) {
     switch (spannerType.getCode()) {
+      case BOOL:
+        return (byte) MYSQL_TYPE_TINYINT.type;
       case INT64:
         return (byte) MYSQL_TYPE_LONGLONG.type;
       case STRING:
