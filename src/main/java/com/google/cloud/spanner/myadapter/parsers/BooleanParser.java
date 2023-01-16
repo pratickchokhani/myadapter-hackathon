@@ -26,7 +26,7 @@ public class BooleanParser extends Parser<Boolean> {
   private static final byte[] FALSE_VALUE_BYTES = new byte[] {'0'};
 
   BooleanParser(ResultSet item, int position) {
-    this.item = item.getBoolean(position);
+    super((resultSet, index) -> item.getBoolean(position), item, position);
   }
 
   public byte[] toLengthEncodedBytes() {

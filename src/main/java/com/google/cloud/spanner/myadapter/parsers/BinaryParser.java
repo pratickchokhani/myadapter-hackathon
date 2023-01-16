@@ -28,7 +28,7 @@ import java.io.IOException;
 public class BinaryParser extends Parser<ByteArray> {
 
   BinaryParser(ResultSet item, int position) {
-    this.item = item.getBytes(position);
+    super((resultSet, index) -> item.getBytes(position), item, position);
   }
 
   @Override

@@ -21,7 +21,7 @@ import java.io.IOException;
 public class IntegerParser extends Parser<Integer> {
 
   IntegerParser(ResultSet item, int position) {
-    this.item = Math.toIntExact(item.getLong(position));
+    super((resultSet, index) -> Math.toIntExact(item.getLong(position)), item, position);
   }
 
   public static byte[] binaryParse(int value) {

@@ -27,7 +27,7 @@ import java.io.IOException;
 public class DateParser extends Parser<Date> {
 
   DateParser(ResultSet item, int position) {
-    this.item = item.getDate(position);
+    super((resultSet, index) -> item.getDate(position), item, position);
   }
 
   @Override
