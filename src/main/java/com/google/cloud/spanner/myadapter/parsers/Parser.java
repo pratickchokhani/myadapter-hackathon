@@ -45,6 +45,8 @@ public abstract class Parser<T> {
    */
   public static Parser<?> create(ResultSet result, Type type, int columnarPosition) {
     switch (type.getCode()) {
+      case BOOL:
+        return new BooleanParser(result, columnarPosition);
       case INT64:
         return new LongParser(result, columnarPosition);
       case STRING:
