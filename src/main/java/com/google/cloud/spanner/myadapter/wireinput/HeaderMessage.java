@@ -43,8 +43,8 @@ public class HeaderMessage {
     headerMessage.remainingPayloadLength =
         ParserHelper.parse3ByteInt(
             inputStream.readUnsignedByte(),
-            (inputStream.readUnsignedByte() << 8),
-            (inputStream.readUnsignedByte() << 16));
+            inputStream.readUnsignedByte(),
+            inputStream.readUnsignedByte());
     headerMessage.messageSequenceNumber = inputStream.readUnsignedByte();
     headerMessage.inputBuffer = new byte[headerMessage.remainingPayloadLength];
     inputStream.readFully(headerMessage.inputBuffer);
