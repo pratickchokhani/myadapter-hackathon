@@ -31,6 +31,10 @@ public class QueryReplacement {
   private QueryAction action;
   private OverrideOperation columnOverrideType = OverrideOperation.NOT_APPLICABLE;
   private ColumnOverride columnOverride;
+  private OverrideOperation tableOverrideType = OverrideOperation.NOT_APPLICABLE;
+  private String tableOverrideValue;
+  private OverrideOperation schemaOverrideType = OverrideOperation.NOT_APPLICABLE;
+  private String schemaOverrideValue;
 
   public QueryReplacement(Statement sourceStatement) {
     this.inputCommand = sourceStatement.getSql();
@@ -73,6 +77,14 @@ public class QueryReplacement {
 
   public Statement getOutputQuery() {
     return outputQuery;
+  }
+
+  public String overrideSchema(String schemaName) {
+    return schemaOverrideType == OverrideOperation.NAME_OVERRIDE ? schemaOverrideValue : schemaName;
+  }
+
+  public String overrideTableName(String tableName) {
+    return tableOverrideType == OverrideOperation.NAME_OVERRIDE ? tableOverrideValue : tableName;
   }
 
   public String overrideColumn(String resultSetColumnName) {
