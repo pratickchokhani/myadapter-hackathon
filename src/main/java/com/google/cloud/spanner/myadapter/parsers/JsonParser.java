@@ -26,7 +26,7 @@ import java.io.IOException;
 public class JsonParser extends Parser<String> {
 
   JsonParser(ResultSet item, int position) {
-    this.item = item.getJson(position);
+    super((resultSet, index) -> item.getJson(position), item, position);
   }
 
   @Override

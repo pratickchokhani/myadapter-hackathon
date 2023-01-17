@@ -23,11 +23,11 @@ import java.io.IOException;
 public class Float64Parser extends Parser<Double> {
 
   Float64Parser(ResultSet item, int position) {
-    this.item = item.getDouble(position);
+    super((resultSet, index) -> item.getDouble(position), item, position);
   }
 
   @Override
   public byte[] toLengthEncodedBytes() throws IOException {
-    return StringParser.getLengthEncodedBytes(Double.toString(item));
+    return StringParser.getLengthEncodedBytes(item == null ? null : Double.toString(item));
   }
 }

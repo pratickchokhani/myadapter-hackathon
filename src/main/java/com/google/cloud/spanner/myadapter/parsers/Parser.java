@@ -17,9 +17,11 @@ package com.google.cloud.spanner.myadapter.parsers;
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.function.BiFunction;
 
 /**
  * Parser is the parsing superclass, used to take wire format data types and convert them
@@ -35,6 +37,15 @@ public abstract class Parser<T> {
   protected static final Charset UTF8 = StandardCharsets.UTF_8;
   protected T item;
 
+  public Parser() {}
+
+  public Parser(BiFunction<ResultSet, Integer, T> itemProducer, ResultSet resultSet, int position) {
+    if (resultSet.isNull(position)) {
+      item = null;
+    } else {
+      item = itemProducer.apply(resultSet, position);
+    }
+  }
   /**
    * Factory method for parsing given a result set, for the specified column.
    *
@@ -78,10 +89,19 @@ public abstract class Parser<T> {
   public byte[] parse(FormatCode format) throws IOException {
     switch (format) {
       case LENGTH_ENCODED:
-        return this.toLengthEncodedBytes();
+        return this.toLengthEncodedBytesNullCheck();
       default:
         throw new IllegalArgumentException("Unknown format: " + format);
     }
+  }
+
+  public byte[] toLengthEncodedBytesNullCheck() throws IOException {
+    if (this.item == null) {
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      outputStream.write(0xFB);
+      return outputStream.toByteArray();
+    }
+    return this.toLengthEncodedBytes();
   }
 
   public abstract byte[] toLengthEncodedBytes() throws IOException;

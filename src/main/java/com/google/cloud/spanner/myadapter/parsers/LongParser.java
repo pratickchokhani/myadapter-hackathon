@@ -23,7 +23,7 @@ import java.io.IOException;
 public class LongParser extends Parser<Long> {
 
   LongParser(ResultSet item, int position) {
-    this.item = item.getLong(position);
+    super((resultSet, index) -> item.getLong(position), item, position);
   }
 
   @Override

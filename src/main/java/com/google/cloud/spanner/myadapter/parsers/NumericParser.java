@@ -27,7 +27,7 @@ import java.math.BigDecimal;
 public class NumericParser extends Parser<BigDecimal> {
 
   NumericParser(ResultSet item, int position) {
-    this.item = item.isNull(position) ? null : item.getBigDecimal(position);
+    super((resultSet, index) -> item.getBigDecimal(index), item, position);
   }
 
   @Override

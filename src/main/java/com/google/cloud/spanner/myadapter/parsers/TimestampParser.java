@@ -35,7 +35,7 @@ public class TimestampParser extends Parser<Timestamp> {
           .toFormatter();
 
   TimestampParser(ResultSet item, int position) {
-    this.item = item.getTimestamp(position);
+    super((resultSet, index) -> item.getTimestamp(position), item, position);
   }
 
   @Override
