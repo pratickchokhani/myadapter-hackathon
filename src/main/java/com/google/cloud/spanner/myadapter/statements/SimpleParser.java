@@ -174,7 +174,7 @@ public class SimpleParser {
     }
   }
 
-  static String unquoteOrFoldIdentifier(String identifier) {
+  public static String unquoteOrFoldIdentifier(String identifier) {
     if (Strings.isNullOrEmpty(identifier)) {
       return null;
     }
@@ -522,7 +522,7 @@ public class SimpleParser {
   }
 
   private boolean isValidIdentifierChar(char c) {
-    return isValidIdentifierFirstChar(c) || Character.isDigit(c) || c == '$';
+    return isValidIdentifierFirstChar(c) || Character.isDigit(c) || c == '$' || c == '_';
   }
 
   boolean peekKeyword(String keyword) {

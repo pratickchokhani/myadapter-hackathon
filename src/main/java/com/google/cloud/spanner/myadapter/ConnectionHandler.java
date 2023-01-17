@@ -90,8 +90,8 @@ public class ConnectionHandler extends Thread {
             String.format(
                 "Connection handler with ID %s created for client %s",
                 getName(), socket.getInetAddress().getHostAddress()));
-    this.sessionState = new SessionState();
     this.options = server.getOptions();
+    this.sessionState = new SessionState(server.getOptions());
     this.backendConnection =
         new BackendConnection(options, server.getProperties(), spannerConnection);
   }
