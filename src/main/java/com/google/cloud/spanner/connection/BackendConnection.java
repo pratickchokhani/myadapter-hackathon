@@ -121,6 +121,18 @@ public class BackendConnection {
     }
   }
 
+  public boolean isTransactionActive() {
+    return spannerConnection.isInTransaction();
+  }
+
+  public void commit() {
+    spannerConnection.commit();
+  }
+
+  public void setAutocommit(boolean autocommit) {
+    spannerConnection.setAutocommit(autocommit);
+  }
+
   private String appendPropertiesToUrl(String url, Properties info) {
     if (info == null || info.isEmpty()) {
       return url;
