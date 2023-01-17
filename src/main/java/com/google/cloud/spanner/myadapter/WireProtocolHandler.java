@@ -17,6 +17,7 @@ package com.google.cloud.spanner.myadapter;
 import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.myadapter.command.CommandHandler;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.ProtocolStatus;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.wireinput.ClientHandshakeMessage;
@@ -45,9 +46,11 @@ public class WireProtocolHandler {
   public WireProtocolHandler(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection) {
+      BackendConnection backendConnection,
+      OptionsMetadata optionsMetadata) {
     this.backendConnection = backendConnection;
-    this.commandHandler = new CommandHandler(connectionMetadata, sessionState, backendConnection);
+    this.commandHandler =
+        new CommandHandler(connectionMetadata, sessionState, backendConnection, optionsMetadata);
     this.connectionMetadata = connectionMetadata;
     this.sessionState = sessionState;
   }

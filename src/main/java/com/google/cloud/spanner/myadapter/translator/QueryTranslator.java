@@ -13,24 +13,30 @@
 // limitations under the License.
 package com.google.cloud.spanner.myadapter.translator;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.logging.Level;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
+import com.google.cloud.spanner.myadapter.translator.models.QueryReplacement;
+import com.google.cloud.spanner.myadapter.translator.models.QueryReplacementConfig;
+import java.util.Map;
 import java.util.logging.Logger;
 
 public class QueryTranslator {
+
   private static final Logger logger = Logger.getLogger(QueryTranslator.class.getName());
 
-  private static Set<String> QUERY_TRANSLATORS =
-      new HashSet<String>(
-          Arrays.asList("show databases", "show tables", "select @@version_comment limit 1"));
+  private final QueryReplacementConfig queryReplacementConfig;
+  private final Map<String, QueryReplacement> completeMatcherQueryTranslatorMap;
 
-  public static boolean bypassQuery(String sql) {
-    if (QUERY_TRANSLATORS.contains(sql)) {
-      logger.log(Level.INFO, () -> String.format("SQL query: %s bypassed.", sql));
-      return true;
-    }
-    return false;
+  public QueryTranslator(OptionsMetadata optionsMetadata) {
+    this.queryReplacementConfig = optionsMetadata.getQueryReplacementConfig();
+    this.completeMatcherQueryTranslatorMap =
+        queryReplacementConfig.getCompleteMatcherReplacementMap();
+  }
+
+  public QueryReplacement translatedQuery(
+      ParsedStatement parsedStatement, Statement originalStatement) {
+    return completeMatcherQueryTranslatorMap.getOrDefault(
+        parsedStatement.getSqlWithoutComments(), new QueryReplacement(originalStatement));
   }
 }

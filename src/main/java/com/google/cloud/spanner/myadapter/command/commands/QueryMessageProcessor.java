@@ -14,15 +14,22 @@
 
 package com.google.cloud.spanner.myadapter.command.commands;
 
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.connection.AbstractStatementParser;
+import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.connection.BackendConnection;
+import com.google.cloud.spanner.connection.SpannerStatementParser;
 import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
+import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
+import com.google.cloud.spanner.myadapter.translator.models.QueryAction;
+import com.google.cloud.spanner.myadapter.translator.models.QueryReplacement;
 import com.google.cloud.spanner.myadapter.utils.Converter;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.WireMessage;
@@ -40,17 +47,23 @@ import java.util.logging.Logger;
 
 public class QueryMessageProcessor extends MessageProcessor {
 
+  private static final SpannerStatementParser PARSER =
+      (SpannerStatementParser) AbstractStatementParser.getInstance(Dialect.GOOGLE_STANDARD_SQL);
+
   private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
 
   private int currentSequenceNumber = -1;
   private final BackendConnection backendConnection;
+  private final QueryTranslator queryTranslator;
 
   public QueryMessageProcessor(
       ConnectionMetadata connectionMetadata,
       SessionState sessionState,
-      BackendConnection backendConnection) {
+      BackendConnection backendConnection,
+      OptionsMetadata optionsMetadata) {
     super(connectionMetadata, sessionState);
     this.backendConnection = backendConnection;
+    this.queryTranslator = new QueryTranslator(optionsMetadata);
   }
 
   @Override
@@ -60,26 +73,28 @@ public class QueryMessageProcessor extends MessageProcessor {
     currentSequenceNumber = queryMessage.getMessageSequenceNumber();
 
     for (Statement originalStatement : statements) {
+      final Statement statement = originalStatement;
       logger.log(
-          Level.INFO,
-          () -> String.format("SQL query being processed: %s.", originalStatement.getSql()));
+          Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
 
       if (originalStatement.getSql().startsWith("SET ")) {
         processSetCommand(originalStatement);
         continue;
       }
 
-      if (QueryTranslator.bypassQuery(originalStatement.getSql())) {
+      ParsedStatement parsedStatement = PARSER.parse(originalStatement);
+      QueryReplacement queryReplacement =
+          queryTranslator.translatedQuery(parsedStatement, originalStatement);
+      if (queryReplacement.getAction() == QueryAction.RETURN_OK) {
         new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
       try {
-        logger.log(Level.INFO, () -> "Executing query.");
-
-        StatementResult statementResult = backendConnection.executeQuery(originalStatement);
+        StatementResult statementResult =
+            backendConnection.executeQuery(queryReplacement.getOutputQuery());
         switch (statementResult.getResultType()) {
           case RESULT_SET:
-            processResultSet(statementResult.getResultSet());
+            processResultSet(statementResult.getResultSet(), queryReplacement);
             break;
           case UPDATE_COUNT:
             new OkResponse(
@@ -100,7 +115,6 @@ public class QueryMessageProcessor extends MessageProcessor {
       }
     }
   }
-
   private void processSetCommand(Statement originalStatement) throws IOException {
     if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=0")) {
       processUnsetAutocommit();
@@ -121,21 +135,23 @@ public class QueryMessageProcessor extends MessageProcessor {
     backendConnection.setAutocommit(false);
   }
 
-
-  private void processResultSet(ResultSet resultSet) throws Exception {
-    sendColumnDefinitions(resultSet);
+  private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
+      throws Exception {
+    sendColumnDefinitions(resultSet, queryReplacement);
     while (resultSet.next()) {
-      sendResultSetRow(resultSet);
+      sendResultSetRow(resultSet, queryReplacement);
     }
     currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
-  private void sendResultSetRow(ResultSet resultSet) throws Exception {
+  private void sendResultSetRow(ResultSet resultSet, QueryReplacement queryReplacement)
+      throws Exception {
     currentSequenceNumber =
         new RowResponse(currentSequenceNumber, connectionMetadata, resultSet).send();
   }
 
-  private void sendColumnDefinitions(ResultSet resultSet) throws IOException {
+  private void sendColumnDefinitions(ResultSet resultSet, QueryReplacement queryReplacement)
+      throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
             currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
@@ -150,7 +166,9 @@ public class QueryMessageProcessor extends MessageProcessor {
               .schema("schemaName")
               .table("tableName")
               .originalTable("oTableName")
-              .column(resultSet.getMetadata().getRowType().getFields(i).getName())
+              .column(
+                  queryReplacement.overrideColumn(
+                      resultSet.getMetadata().getRowType().getFields(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
                   resultSet.getColumnType(i).getCode() == Code.BYTES
