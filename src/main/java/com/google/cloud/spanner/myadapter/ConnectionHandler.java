@@ -91,9 +91,9 @@ public class ConnectionHandler extends Thread {
                 "Connection handler with ID %s created for client %s",
                 getName(), socket.getInetAddress().getHostAddress()));
     this.options = server.getOptions();
-    this.sessionState = new SessionState(server.getOptions());
     this.backendConnection =
         new BackendConnection(options, server.getProperties(), spannerConnection);
+    this.sessionState = new SessionState(server.getOptions(), backendConnection);
   }
 
   void createSSLSocket() throws IOException {

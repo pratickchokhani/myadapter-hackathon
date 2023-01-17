@@ -183,18 +183,17 @@ public class SessionStatementParser {
 
   public static @Nullable SessionStatement parse(ParsedStatement parsedStatement) {
     if (parsedStatement.getType() == StatementType.CLIENT_SIDE) {
-      // This statement is handled by the Connection API.
-      return null;
+      // TODO : See if we need special handling for client side statements.
+      // Disabling this right now as "SET AUTOCOMMIT 1" is getting treated as
+      // client side statement, but it's not a valid GoogleSQL statement.
     }
     SimpleParser parser = new SimpleParser(parsedStatement.getSqlWithoutComments());
     if (parser.eatKeyword("set")) {
-      System.out.println("It's a set statement!!!!!");
       return parseSetStatement(parser);
     }
     if (parser.eatKeyword("select")
         && !parser.peek(true, true, "FROM")
         && parser.peek(true, false, "@@")) {
-      System.out.println("It's a select @@ statement!!!!!");
       return parseSelectStatement(parser);
     }
 

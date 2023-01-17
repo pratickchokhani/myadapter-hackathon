@@ -18,8 +18,10 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.myadapter.command.commands.QueryMessageProcessor;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
+import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -34,6 +36,7 @@ import java.util.logging.Logger;
 @InternalApi
 public class SessionState {
   private volatile ProtocolStatus protocolStatus;
+  private final BackendConnection backendConnection;
 
   static final Map<String, SystemVariable> GLOBAL_SETTINGS = new HashMap<>();
   private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
@@ -51,13 +54,17 @@ public class SessionState {
 
   private final Map<String, SystemVariable> settings;
 
-  public SessionState(OptionsMetadata options) {
-    this(ImmutableMap.of(), options);
+  public SessionState(OptionsMetadata options, BackendConnection backendConnection) {
+    this(ImmutableMap.of(), options, backendConnection);
   }
 
   @VisibleForTesting
-  SessionState(Map<String, SystemVariable> extraServerSettings, OptionsMetadata options) {
+  SessionState(
+      Map<String, SystemVariable> extraServerSettings,
+      OptionsMetadata options,
+      BackendConnection backendConnection) {
     this.protocolStatus = ProtocolStatus.CONNECTION_INITIATED;
+    this.backendConnection = backendConnection;
 
     Preconditions.checkNotNull(extraServerSettings);
     Preconditions.checkNotNull(options);
@@ -115,7 +122,21 @@ public class SessionState {
     if (variable == null) {
       throw unknownParamError(name);
     }
+    System.out.println("flog: variable name : " + variable.getValue());
+    if ("autocommit".equals(variable.getName())) {
+      handleAutocommit(value);
+    }
     variable.setValue(value);
+  }
+
+  private void handleAutocommit(String value) {
+    if (BooleanParser.TRUE_VALUES.contains(value)) {
+      backendConnection.processSetAutocommit();
+    } else if (BooleanParser.FALSE_VALUES.contains(value)) {
+      backendConnection.processUnsetAutocommit();
+    } else {
+      throw unknownParamError(String.format("Value %s cannot be set for autocommit", value));
+    }
   }
 
   /** Returns the current value of the specified setting. */

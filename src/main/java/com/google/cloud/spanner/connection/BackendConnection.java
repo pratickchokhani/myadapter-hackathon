@@ -219,14 +219,14 @@ public class BackendConnection {
     }
   }
 
-  private void processSetAutocommit() {
+  public void processSetAutocommit() {
     if (this.isTransactionActive()) {
       this.commit();
     }
     this.setAutocommit(true);
   }
 
-  private void processUnsetAutocommit() {
+  public void processUnsetAutocommit() {
     this.setAutocommit(false);
   }
 }
