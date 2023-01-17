@@ -178,9 +178,9 @@ public class SimpleParser {
     if (Strings.isNullOrEmpty(identifier)) {
       return null;
     }
-    if (identifier.charAt(0) == '"'
-        && identifier.charAt(identifier.length() - 1) == '"'
-        && identifier.length() > 1) {
+    if ((identifier.charAt(0) == '"' && identifier.charAt(identifier.length() - 1) == '"')
+        || (identifier.charAt(0) == '\'' && identifier.charAt(identifier.length() - 1) == '\'')
+            && identifier.length() > 1) {
       return identifier.substring(1, identifier.length() - 1);
     }
     return identifier.toLowerCase();

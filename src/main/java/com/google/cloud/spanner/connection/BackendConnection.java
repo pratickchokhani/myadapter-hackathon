@@ -21,13 +21,18 @@ import com.google.cloud.spanner.DatabaseNotFoundException;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.InstanceNotFoundException;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
+import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser.SessionStatement;
 import java.util.Map.Entry;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -111,8 +116,14 @@ public class BackendConnection {
     this.databaseId = connectionOptions.getDatabaseId();
   }
 
-  public StatementResult executeQuery(Statement originalStatement) {
-    return spannerConnection.execute(originalStatement);
+  public StatementResult executeQuery(
+      Statement statement, ParsedStatement parsedStatement, SessionState sessionState) {
+    SessionStatement sessionStatement = SessionStatementParser.parse(parsedStatement);
+    if (sessionStatement != null) {
+      return sessionStatement.execute(sessionState);
+    }
+
+    return spannerConnection.execute(statement);
   }
 
   public void terminate() {
@@ -144,5 +155,78 @@ public class BackendConnection {
       }
     }
     return result.toString();
+  }
+
+  @InternalApi
+  public static final class QueryResult implements StatementResult {
+    private final ResultSet resultSet;
+
+    public QueryResult(ResultSet resultSet) {
+      this.resultSet = resultSet;
+    }
+
+    @Override
+    public ResultType getResultType() {
+      return ResultType.RESULT_SET;
+    }
+
+    @Override
+    public ClientSideStatementType getClientSideStatementType() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ResultSet getResultSet() {
+      return resultSet;
+    }
+
+    @Override
+    public Long getUpdateCount() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  /**
+   * Implementation of {@link StatementResult} for statements that return an update count (e.g.
+   * DML).
+   */
+  @InternalApi
+  public static final class UpdateCount implements StatementResult {
+    private final Long updateCount;
+
+    public UpdateCount(Long updateCount) {
+      this.updateCount = updateCount;
+    }
+
+    @Override
+    public ResultType getResultType() {
+      return ResultType.UPDATE_COUNT;
+    }
+
+    @Override
+    public ClientSideStatementType getClientSideStatementType() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ResultSet getResultSet() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Long getUpdateCount() {
+      return updateCount;
+    }
+  }
+
+  private void processSetAutocommit() {
+    if (this.isTransactionActive()) {
+      this.commit();
+    }
+    this.setAutocommit(true);
+  }
+
+  private void processUnsetAutocommit() {
+    this.setAutocommit(false);
   }
 }

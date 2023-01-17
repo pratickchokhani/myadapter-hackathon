@@ -77,21 +77,19 @@ public class QueryMessageProcessor extends MessageProcessor {
       logger.log(
           Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
 
-      if (originalStatement.getSql().startsWith("SET ")) {
-        processSetCommand(originalStatement);
-        continue;
-      }
-
       ParsedStatement parsedStatement = PARSER.parse(originalStatement);
       QueryReplacement queryReplacement =
           queryTranslator.translatedQuery(parsedStatement, originalStatement);
       if (queryReplacement.getAction() == QueryAction.RETURN_OK) {
-        new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+        currentSequenceNumber =
+            new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
+      parsedStatement = PARSER.parse(queryReplacement.getOutputQuery());
       try {
         StatementResult statementResult =
-            backendConnection.executeQuery(queryReplacement.getOutputQuery());
+            backendConnection.executeQuery(
+                queryReplacement.getOutputQuery(), parsedStatement, sessionState);
         switch (statementResult.getResultType()) {
           case RESULT_SET:
             processResultSet(statementResult.getResultSet(), queryReplacement);
@@ -116,30 +114,14 @@ public class QueryMessageProcessor extends MessageProcessor {
     }
   }
 
-  private void processSetCommand(Statement originalStatement) throws IOException {
-    if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=0")) {
-      processUnsetAutocommit();
-    } else if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=1")) {
-      processSetAutocommit();
-    }
-    new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
-  }
-
-  private void processSetAutocommit() {
-    if (backendConnection.isTransactionActive()) {
-      backendConnection.commit();
-    }
-    backendConnection.setAutocommit(true);
-  }
-
-  private void processUnsetAutocommit() {
-    backendConnection.setAutocommit(false);
-  }
-
   private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
-    sendColumnDefinitions(resultSet, queryReplacement);
+    boolean shouldSendColumnDefinitions = true;
     while (resultSet.next()) {
+      if (shouldSendColumnDefinitions) {
+        sendColumnDefinitions(resultSet, queryReplacement);
+        shouldSendColumnDefinitions = false;
+      }
       sendResultSetRow(resultSet, queryReplacement);
     }
     currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
@@ -162,6 +144,7 @@ public class QueryMessageProcessor extends MessageProcessor {
           new ColumnDefinitionResponse.Builder(currentSequenceNumber, connectionMetadata);
       // TODO : Assess how does fields like schema, table, originalTable affects the client, and
       // properly populate them.
+      resultSet.getType().getStructFields().get(i).getType().getCode();
       currentSequenceNumber =
           builder
               .schema("schemaName")
@@ -169,14 +152,16 @@ public class QueryMessageProcessor extends MessageProcessor {
               .originalTable("oTableName")
               .column(
                   queryReplacement.overrideColumn(
-                      resultSet.getMetadata().getRowType().getFields(i).getName()))
+                      resultSet.getType().getStructFields().get(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
                   resultSet.getColumnType(i).getCode() == Code.BYTES
                       ? CHARSET_BINARY
                       : CHARSET_UTF8_MB4)
               .maxColumnLength(20)
-              .columnType(Converter.convertToMySqlCode(resultSet.getColumnType(i).getCode()))
+              .columnType(
+                  Converter.convertToMySqlCode(
+                      resultSet.getType().getStructFields().get(i).getType().getCode()))
               .columnDefinitionFlags(0)
               .decimals(0)
               .build()
