@@ -77,6 +77,11 @@ public class QueryMessageProcessor extends MessageProcessor {
       logger.log(
           Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
 
+      if (originalStatement.getSql().startsWith("SET ")) {
+        processSetCommand(originalStatement);
+        continue;
+      }
+
       ParsedStatement parsedStatement = PARSER.parse(originalStatement);
       QueryReplacement queryReplacement =
           queryTranslator.translatedQuery(parsedStatement, originalStatement);
@@ -93,7 +98,7 @@ public class QueryMessageProcessor extends MessageProcessor {
             break;
           case UPDATE_COUNT:
             new OkResponse(
-                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
                 .send(true);
             break;
           case NO_RESULT:
@@ -110,32 +115,46 @@ public class QueryMessageProcessor extends MessageProcessor {
       }
     }
   }
+  private void processSetCommand(Statement originalStatement) throws IOException {
+    if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=0")) {
+      processUnsetAutocommit();
+    } else if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=1")) {
+      processSetAutocommit();
+    }
+    new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+  }
+
+  private void processSetAutocommit() {
+    if (backendConnection.isTransactionActive()) {
+      backendConnection.commit();
+    }
+    backendConnection.setAutocommit(true);
+  }
+
+  private void processUnsetAutocommit() {
+    backendConnection.setAutocommit(false);
+  }
 
   private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
-    int rowSent = 0;
+    sendColumnDefinitions(resultSet, queryReplacement);
     while (resultSet.next()) {
-      rowSent = sendResultSetRow(resultSet, rowSent, queryReplacement);
+      sendResultSetRow(resultSet, queryReplacement);
     }
     currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
-  private int sendResultSetRow(ResultSet resultSet, int rowsSent, QueryReplacement queryReplacement)
+  private void sendResultSetRow(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
-    if (rowsSent == 0) {
-      sendColumnDefinitions(resultSet, queryReplacement);
-    }
     currentSequenceNumber =
         new RowResponse(currentSequenceNumber, connectionMetadata, resultSet).send();
-    rowsSent++;
-    return rowsSent;
   }
 
   private void sendColumnDefinitions(ResultSet resultSet, QueryReplacement queryReplacement)
       throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
       ColumnDefinitionResponse.Builder builder =
