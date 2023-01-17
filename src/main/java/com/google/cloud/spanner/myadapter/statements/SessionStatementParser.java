@@ -250,7 +250,7 @@ public class SessionStatementParser {
     for (String expression : columnExpressions) {
       SimpleParser expressionParser = new SimpleParser(expression);
       VariableColumn.Builder columnBuilder = new VariableColumn.Builder();
-      columnBuilder.columnName(expression.trim());
+      String columnName = expression.trim();
       if (expressionParser.eatToken("@@") || !expressionParser.eatToken("@")) {
         columnBuilder.setSystemVariable();
       }
@@ -265,6 +265,10 @@ public class SessionStatementParser {
         columnBuilder.setGlobal();
       }
 
+      if (expressionParser.eatKeyword("as")) {
+        columnName = expressionParser.readKeyword();
+      }
+      columnBuilder.columnName(columnName);
       columnBuilder.variableName(name.getUnquotedName());
       builder.addVariableColumn(columnBuilder.build());
     }
