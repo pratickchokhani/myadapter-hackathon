@@ -17,6 +17,7 @@ package com.google.cloud.spanner.myadapter.parsers;
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -77,6 +78,18 @@ public abstract class Parser<T> {
 
       default:
         throw new IllegalArgumentException("Illegal or unknown element type: " + type);
+    }
+  }
+
+  public static Value parseToSpannerValue(String value, Type.Code typeCode) {
+    switch (typeCode) {
+      case INT64:
+        return Value.int64(Long.parseLong(value));
+      case STRING:
+        return Value.string(value);
+
+      default:
+        throw new IllegalArgumentException("Illegal or unknown type: " + typeCode);
     }
   }
 

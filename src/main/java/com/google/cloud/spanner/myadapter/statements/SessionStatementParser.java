@@ -14,17 +14,29 @@
 
 package com.google.cloud.spanner.myadapter.statements;
 
+import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Strings;
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.Type.StructField;
 import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.connection.AbstractStatementParser.StatementType;
+import com.google.cloud.spanner.connection.BackendConnection.QueryResult;
 import com.google.cloud.spanner.connection.BackendConnection.UpdateCount;
 import com.google.cloud.spanner.connection.StatementResult;
+import com.google.cloud.spanner.myadapter.parsers.Parser;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.session.SessionState.SessionVariableScope;
+import com.google.cloud.spanner.myadapter.session.SystemVariable;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser.TableOrIndexName;
+import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
 import javax.annotation.Nullable;
 
 /** Simple parser for session management commands (SET/SHOW/RESET variable_name) */
@@ -131,6 +143,51 @@ public class SessionStatementParser {
     }
   }
 
+  static class SelectStatement extends SessionStatement {
+    static class Builder {
+      Builder addVariableColumn(VariableColumn variableColumn) {
+        variableColumnList.add(variableColumn);
+        return this;
+      }
+
+      ArrayList<VariableColumn> variableColumnList = new ArrayList<VariableColumn>();
+    }
+
+    SelectStatement(Builder builder) {
+      this.variableColumns = builder.variableColumnList;
+    }
+
+    @Override
+    public StatementResult execute(SessionState sessionState) {
+      ArrayList<StructField> structFields = new ArrayList<Type.StructField>();
+      Struct.Builder rowBuilder = Struct.newBuilder();
+      for (VariableColumn column : variableColumns) {
+        SystemVariable variable = sessionState.get(null, column.variableName, column.scope);
+        System.out.println(
+            "flog: Adding column '"
+                + column.columnName
+                + "' with value '"
+                + variable.getValue()
+                + "'");
+        structFields.add(StructField.of(column.columnName, variable.getType()));
+        rowBuilder
+            .set(column.columnName)
+            .to(Parser.parseToSpannerValue(variable.getValue(), variable.getType().getCode()));
+      }
+
+      Type rowType = Type.struct(structFields);
+      ImmutableList<Struct> rows = ImmutableList.of(rowBuilder.build());
+      Preconditions.checkNotNull(rowType);
+      Preconditions.checkNotNull(rows);
+      Preconditions.checkArgument(rowType.getCode() == Code.STRUCT);
+      System.out.println("preconditions passed!!!!!!!");
+      ResultSet resultSet = ResultSets.forRows(rowType, rows);
+      return new QueryResult(resultSet);
+    }
+
+    ArrayList<VariableColumn> variableColumns;
+  }
+
   public static @Nullable SessionStatement parse(ParsedStatement parsedStatement) {
     if (parsedStatement.getType() == StatementType.CLIENT_SIDE) {
       // This statement is handled by the Connection API.
@@ -140,6 +197,12 @@ public class SessionStatementParser {
     if (parser.eatKeyword("set")) {
       System.out.println("It's a set statement!!!!!");
       return parseSetStatement(parser);
+    }
+    if (parser.eatKeyword("select")
+        && !parser.peek(true, true, "FROM")
+        && parser.peek(true, false, "@@")) {
+      System.out.println("It's a select @@ statement!!!!!");
+      return parseSelectStatement(parser);
     }
 
     return null;
@@ -187,5 +250,33 @@ public class SessionStatementParser {
     }
 
     return builder.build();
+  }
+
+  static SelectStatement parseSelectStatement(SimpleParser parser) {
+    SelectStatement.Builder builder = new SelectStatement.Builder();
+    String[] columnExpressions = parser.getSql().substring(parser.getPos()).split(",");
+    for (String expression : columnExpressions) {
+      System.out.println("flog: Expression: " + expression);
+      SimpleParser expressionParser = new SimpleParser(expression);
+      VariableColumn.Builder columnBuilder = new VariableColumn.Builder();
+      columnBuilder.columnName(expression.trim());
+      if (expressionParser.eatToken("@@") || !expressionParser.eatToken("@")) {
+        columnBuilder.setSystemVariable();
+      }
+      TableOrIndexName name = expressionParser.readTableOrIndexName();
+      if (name == null) {
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT,
+            "Invalid SELECT statement expression: " + expressionParser.getSql());
+      }
+
+      if ("global".equals(name.getUnquotedSchema())) {
+        columnBuilder.setGlobal();
+      }
+
+      columnBuilder.variableName(name.getUnquotedName());
+      builder.addVariableColumn(columnBuilder.build());
+    }
+    return new SelectStatement(builder);
   }
 }
