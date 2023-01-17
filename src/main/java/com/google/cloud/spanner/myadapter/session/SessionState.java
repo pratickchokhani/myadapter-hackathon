@@ -125,7 +125,9 @@ public class SessionState {
       return;
     }
     if ("autocommit".equals(name)) {
-      handleAutocommit(value);
+      // Autocommit value needs to be converted to an integer as internally autocommit is being
+      // tracked as integer.
+      value = handleAutocommit(value);
     }
     String key = toKey(extension, name);
     SystemVariable variable = variableMap.get(key);
@@ -135,14 +137,16 @@ public class SessionState {
     variable.setValue(value);
   }
 
-  private void handleAutocommit(String value) {
+  private String handleAutocommit(String value) {
     if (BooleanParser.TRUE_VALUES.contains(value)) {
       backendConnection.processSetAutocommit();
-    } else if (BooleanParser.FALSE_VALUES.contains(value)) {
-      backendConnection.processUnsetAutocommit();
-    } else {
-      throw unknownParamError(String.format("Value %s cannot be set for autocommit", value));
+      return "1";
     }
+    if (BooleanParser.FALSE_VALUES.contains(value)) {
+      backendConnection.processUnsetAutocommit();
+      return "0";
+    }
+    throw unknownParamError(String.format("Value %s cannot be set for autocommit", value));
   }
 
   private void handleNames(String value) {
