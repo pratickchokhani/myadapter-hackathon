@@ -98,7 +98,7 @@ public class QueryMessageProcessor extends MessageProcessor {
             break;
           case UPDATE_COUNT:
             new OkResponse(
-                currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
+                    currentSequenceNumber, connectionMetadata, statementResult.getUpdateCount())
                 .send(true);
             break;
           case NO_RESULT:
@@ -115,6 +115,7 @@ public class QueryMessageProcessor extends MessageProcessor {
       }
     }
   }
+
   private void processSetCommand(Statement originalStatement) throws IOException {
     if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=0")) {
       processUnsetAutocommit();
@@ -154,7 +155,7 @@ public class QueryMessageProcessor extends MessageProcessor {
       throws IOException {
     currentSequenceNumber =
         new ColumnCountResponse(
-            currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
+                currentSequenceNumber, connectionMetadata, resultSet.getColumnCount())
             .send();
     for (int i = 0; i < resultSet.getColumnCount(); ++i) {
       ColumnDefinitionResponse.Builder builder =
