@@ -116,15 +116,23 @@ public class QueryMessageProcessor extends MessageProcessor {
 
   private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
-    boolean shouldSendColumnDefinitions = true;
+    int rowsSent = 0;
+    // ResultSet cannot be accessed for pre-populated result sets without calling .next() at least
+    // once. We create pre-populated result sets for things like system variable queries.
     while (resultSet.next()) {
-      if (shouldSendColumnDefinitions) {
+      if (rowsSent < 1) {
         sendColumnDefinitions(resultSet, queryReplacement);
-        shouldSendColumnDefinitions = false;
       }
       sendResultSetRow(resultSet, queryReplacement);
+      rowsSent++;
     }
-    currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+
+    // Clients expect an Ok response if no rows were sent, otherwise an EOF response.
+    if (rowsSent < 1) {
+      currentSequenceNumber = new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+    } else {
+      currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+    }
   }
 
   private void sendResultSetRow(ResultSet resultSet, QueryReplacement queryReplacement)
