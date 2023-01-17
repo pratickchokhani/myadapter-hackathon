@@ -24,8 +24,10 @@ import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -117,14 +119,18 @@ public class SessionState {
 
   private void internalSet(
       String extension, String name, String value, Map<String, SystemVariable> variableMap) {
+    if ("names".equals(name)) {
+      // TODO: Consider handling "SET NAMES" as a separate statement type.
+      handleNames(value);
+      return;
+    }
+    if ("autocommit".equals(name)) {
+      handleAutocommit(value);
+    }
     String key = toKey(extension, name);
     SystemVariable variable = variableMap.get(key);
     if (variable == null) {
       throw unknownParamError(name);
-    }
-    System.out.println("flog: variable name : " + variable.getValue());
-    if ("autocommit".equals(variable.getName())) {
-      handleAutocommit(value);
     }
     variable.setValue(value);
   }
@@ -136,6 +142,19 @@ public class SessionState {
       backendConnection.processUnsetAutocommit();
     } else {
       throw unknownParamError(String.format("Value %s cannot be set for autocommit", value));
+    }
+  }
+
+  private void handleNames(String value) {
+    logger.log(Level.INFO, () -> String.format("Setting all character sets to %s", value));
+    List<String> charasets =
+        ImmutableList.of(
+            "character_set_client", "character_set_connection", "character_set_results");
+    Map<String, SystemVariable> variableMap = getVariableMapForScope(SessionVariableScope.SESSION);
+    for (String charset : charasets) {
+      SystemVariable variable = variableMap.get(charset);
+      Preconditions.checkNotNull(variable);
+      variable.setValue(value);
     }
   }
 

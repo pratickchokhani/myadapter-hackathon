@@ -202,28 +202,36 @@ public class SessionStatementParser {
 
   static SetStatement parseSetStatement(SimpleParser parser) {
     SetStatement.Builder builder = new SetStatement.Builder();
-    if (parser.eatToken("@@") || !parser.eatToken("@")) {
-      // This is a system variable
+    if (parser.eatKeyword("names")) {
       builder.systemVariable();
+      builder.name("names");
+    } else {
+      if (parser.eatToken("@@") || !parser.eatToken("@")) {
+        // This is a system variable
+        builder.systemVariable();
+      }
+
+      TableOrIndexName name = parser.readTableOrIndexName();
+      if (name == null) {
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT,
+            "Invalid SET statement: "
+                + parser.getSql()
+                + ". Expected configuration parameter name.");
+      }
+
+      if ("global".equals(name.getUnquotedSchema())) {
+        builder.global();
+      }
+
+      builder.name(name.getUnquotedName());
+      if (!parser.eatToken("=")) {
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT,
+            "Invalid SET statement: " + parser.getSql() + ". Expected =.");
+      }
     }
 
-    TableOrIndexName name = parser.readTableOrIndexName();
-    if (name == null) {
-      throw SpannerExceptionFactory.newSpannerException(
-          ErrorCode.INVALID_ARGUMENT,
-          "Invalid SET statement: " + parser.getSql() + ". Expected configuration parameter name.");
-    }
-
-    if ("global".equals(name.getUnquotedSchema())) {
-      builder.global();
-    }
-
-    builder.name(name.getUnquotedName());
-    if (!parser.eatToken("=")) {
-      throw SpannerExceptionFactory.newSpannerException(
-          ErrorCode.INVALID_ARGUMENT,
-          "Invalid SET statement: " + parser.getSql() + ". Expected =.");
-    }
     String value = parser.unquoteOrFoldIdentifier(parser.parseExpression());
     if (value == null) {
       throw SpannerExceptionFactory.newSpannerException(
