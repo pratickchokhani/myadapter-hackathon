@@ -163,12 +163,6 @@ public class SessionStatementParser {
       Struct.Builder rowBuilder = Struct.newBuilder();
       for (VariableColumn column : variableColumns) {
         SystemVariable variable = sessionState.get(null, column.variableName, column.scope);
-        System.out.println(
-            "flog: Adding column '"
-                + column.columnName
-                + "' with value '"
-                + variable.getValue()
-                + "'");
         structFields.add(StructField.of(column.columnName, variable.getType()));
         rowBuilder
             .set(column.columnName)
@@ -180,7 +174,6 @@ public class SessionStatementParser {
       Preconditions.checkNotNull(rowType);
       Preconditions.checkNotNull(rows);
       Preconditions.checkArgument(rowType.getCode() == Code.STRUCT);
-      System.out.println("preconditions passed!!!!!!!");
       ResultSet resultSet = ResultSets.forRows(rowType, rows);
       return new QueryResult(resultSet);
     }
@@ -256,7 +249,6 @@ public class SessionStatementParser {
     SelectStatement.Builder builder = new SelectStatement.Builder();
     String[] columnExpressions = parser.getSql().substring(parser.getPos()).split(",");
     for (String expression : columnExpressions) {
-      System.out.println("flog: Expression: " + expression);
       SimpleParser expressionParser = new SimpleParser(expression);
       VariableColumn.Builder columnBuilder = new VariableColumn.Builder();
       columnBuilder.columnName(expression.trim());

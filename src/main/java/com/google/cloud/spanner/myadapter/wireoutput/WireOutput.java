@@ -70,7 +70,6 @@ public abstract class WireOutput {
   }
 
   private void sendHeader() throws IOException {
-    System.out.println("sending header");
     int length = this.bufferOutputStream.size();
     for (int i = 0; i < 3; ++i) {
       this.outputStream.write((byte) (length & 255));
