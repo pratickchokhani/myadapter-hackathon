@@ -20,7 +20,6 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.myadapter.command.commands.QueryMessageProcessor;
-import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -50,26 +49,23 @@ public class SessionState {
 
   static {
     for (SystemVariable setting : SystemVariable.read()) {
-      GLOBAL_SETTINGS.put(toKey(null, setting.getName()), setting);
+      GLOBAL_SETTINGS.put(setting.getName().toLowerCase(Locale.ROOT), setting);
     }
   }
 
   private final Map<String, SystemVariable> settings;
 
-  public SessionState(OptionsMetadata options, BackendConnection backendConnection) {
-    this(ImmutableMap.of(), options, backendConnection);
+  public SessionState(BackendConnection backendConnection) {
+    this(ImmutableMap.of(), backendConnection);
   }
 
   @VisibleForTesting
   SessionState(
-      Map<String, SystemVariable> extraServerSettings,
-      OptionsMetadata options,
-      BackendConnection backendConnection) {
+      Map<String, SystemVariable> extraServerSettings, BackendConnection backendConnection) {
     this.protocolStatus = ProtocolStatus.CONNECTION_INITIATED;
     this.backendConnection = backendConnection;
 
     Preconditions.checkNotNull(extraServerSettings);
-    Preconditions.checkNotNull(options);
     this.settings = new HashMap<>(GLOBAL_SETTINGS.size() + extraServerSettings.size());
     for (Entry<String, SystemVariable> entry : GLOBAL_SETTINGS.entrySet()) {
       this.settings.put(entry.getKey(), entry.getValue().copy());
@@ -77,8 +73,6 @@ public class SessionState {
     for (Entry<String, SystemVariable> entry : extraServerSettings.entrySet()) {
       this.settings.put(entry.getKey(), entry.getValue().copy());
     }
-    // this.settings.get("server_version").initSettingValue(options.getServerVersion());
-    // this.settings.get("server_version_num").initSettingValue(options.getServerVersionNum());
   }
 
   public ProtocolStatus getProtocolStatus() {
@@ -87,12 +81,6 @@ public class SessionState {
 
   public void setProtocolStatus(ProtocolStatus protocolStatus) {
     this.protocolStatus = protocolStatus;
-  }
-
-  private static String toKey(String extension, String name) {
-    return extension == null
-        ? name.toLowerCase(Locale.ROOT)
-        : extension.toLowerCase(Locale.ROOT) + "." + name.toLowerCase(Locale.ROOT);
   }
 
   Map<String, SystemVariable> getVariableMapForScope(SessionVariableScope scope) {
@@ -109,16 +97,15 @@ public class SessionState {
    * Sets the value of the specified setting. The new value will be persisted if the current
    * transaction is committed. The value will be lost if the transaction is rolled back.
    */
-  public void set(String extension, String name, String value, SessionVariableScope scope) {
+  public void set(String name, String value, SessionVariableScope scope) {
     logger.log(
         Level.INFO,
         () -> String.format("Setting system variable %s to %s at scope %s", name, value, scope));
     Map<String, SystemVariable> variableMap = getVariableMapForScope(scope);
-    internalSet(extension, name, value, variableMap);
+    internalSet(name.toLowerCase(Locale.ROOT), value, variableMap);
   }
 
-  private void internalSet(
-      String extension, String name, String value, Map<String, SystemVariable> variableMap) {
+  private void internalSet(String name, String value, Map<String, SystemVariable> variableMap) {
     if ("names".equals(name)) {
       // TODO: Consider handling "SET NAMES" as a separate statement type.
       handleNames(value);
@@ -129,10 +116,9 @@ public class SessionState {
       // tracked as integer.
       value = handleAutocommit(value);
     }
-    String key = toKey(extension, name);
-    SystemVariable variable = variableMap.get(key);
+    SystemVariable variable = variableMap.get(name);
     if (variable == null) {
-      throw unknownParamError(name);
+      throw unknownVariableError(name);
     }
     variable.setValue(value);
   }
@@ -146,7 +132,7 @@ public class SessionState {
       backendConnection.processUnsetAutocommit();
       return "0";
     }
-    throw unknownParamError(String.format("Value %s cannot be set for autocommit", value));
+    throw invalidValueError("autocommit", value);
   }
 
   private void handleNames(String value) {
@@ -163,25 +149,33 @@ public class SessionState {
   }
 
   /** Returns the current value of the specified setting. */
-  public SystemVariable get(String extension, String name, SessionVariableScope scope) {
+  public SystemVariable get(String name, SessionVariableScope scope) {
     Map<String, SystemVariable> variableMap = getVariableMapForScope(scope);
-    return internalGet(toKey(extension, name), variableMap);
+    return internalGet(name.toLowerCase(Locale.ROOT), variableMap);
   }
 
   private SystemVariable internalGet(String key, Map<String, SystemVariable> variableMap) {
     SystemVariable variable = variableMap.get(key);
-    Preconditions.checkNotNull(variable);
+    if (variable == null) {
+      throw unknownVariableError(key);
+    }
     return variable;
   }
 
-  String getStringSetting(String extension, String name, SessionVariableScope scope) {
-    SystemVariable setting = internalGet(toKey(extension, name), getVariableMapForScope(scope));
-    return setting.getValue();
+  static SpannerException invalidValueError(String key, String value) {
+    return SpannerExceptionFactory.newSpannerException(
+        ErrorCode.INVALID_ARGUMENT,
+        String.format("Value \"%s\" cannot be set for system variable ", key));
   }
 
   static SpannerException unknownParamError(String key) {
     return SpannerExceptionFactory.newSpannerException(
         ErrorCode.INVALID_ARGUMENT,
         String.format("unrecognized configuration parameter \"%s\"", key));
+  }
+
+  static SpannerException unknownVariableError(String key) {
+    return SpannerExceptionFactory.newSpannerException(
+        ErrorCode.INVALID_ARGUMENT, String.format("No system variable named \"%s\"", key));
   }
 }

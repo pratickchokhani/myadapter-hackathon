@@ -93,7 +93,7 @@ public class ConnectionHandler extends Thread {
     this.options = server.getOptions();
     this.backendConnection =
         new BackendConnection(options, server.getProperties(), spannerConnection);
-    this.sessionState = new SessionState(server.getOptions(), backendConnection);
+    this.sessionState = new SessionState(backendConnection);
   }
 
   void createSSLSocket() throws IOException {

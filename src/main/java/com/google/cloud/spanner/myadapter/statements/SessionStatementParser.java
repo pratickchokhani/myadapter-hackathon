@@ -64,7 +64,7 @@ public class SessionStatementParser {
       }
 
       Builder setSystemVariable() {
-        this.systemVariable = systemVariable;
+        this.systemVariable = true;
         return this;
       }
 
@@ -138,7 +138,7 @@ public class SessionStatementParser {
 
     @Override
     public StatementResult execute(SessionState sessionState) {
-      sessionState.set(null, name, value, scope);
+      sessionState.set(name, value, scope);
       return new UpdateCount(0L);
     }
   }
@@ -162,7 +162,7 @@ public class SessionStatementParser {
       ArrayList<StructField> structFields = new ArrayList<Type.StructField>();
       Struct.Builder rowBuilder = Struct.newBuilder();
       for (VariableColumn column : variableColumns) {
-        SystemVariable variable = sessionState.get(null, column.variableName, column.scope);
+        SystemVariable variable = sessionState.get(column.variableName, column.scope);
         structFields.add(StructField.of(column.columnName, variable.getType()));
         rowBuilder
             .set(column.columnName)

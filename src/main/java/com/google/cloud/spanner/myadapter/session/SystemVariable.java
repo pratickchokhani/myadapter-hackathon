@@ -15,16 +15,12 @@
 package com.google.cloud.spanner.myadapter.session;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.utils.Converter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.*;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 /** Represents a row in the pg_settings table. */
@@ -38,7 +34,6 @@ public class SystemVariable {
   private String name;
   private Type spannerType;
   private String value;
-  private boolean readOnly;
 
   static ImmutableList<SystemVariable> read() {
     ImmutableList.Builder<SystemVariable> builder = ImmutableList.builder();
@@ -70,21 +65,6 @@ public class SystemVariable {
     return value;
   }
 
-  static String[] parseStringArray(String value) {
-    if ("\\N".equals(value)) {
-      return null;
-    }
-    Preconditions.checkArgument(value.startsWith("{") && value.endsWith("}"));
-    return value.substring(1, value.length() - 1).split(",");
-  }
-
-  static Integer parseInteger(String value) {
-    if ("\\N".equals(value)) {
-      return null;
-    }
-    return Integer.valueOf(value);
-  }
-
   SystemVariable(String extension, String name, Type variableType, String value) {
     this.extension = extension;
     this.name = name;
@@ -97,35 +77,6 @@ public class SystemVariable {
     return new SystemVariable(null, name, spannerType, value);
   }
 
-  /** Converts a string to a SQL literal expression that can be used in a select statement. */
-  String toSelectExpression(String value) {
-    return value == null ? "null" : "'" + value + "'";
-  }
-
-  /**
-   * Converts a string array to a SQL literal expression that can be used in a select statement. The
-   * expression is cast to text[].
-   */
-  String toSelectExpression(String[] value) {
-    return value == null
-        ? "null::text[]"
-        : "'{"
-            + Arrays.stream(value)
-                .map(s -> s.startsWith("\"") ? s : "\"" + s + "\"")
-                .collect(Collectors.joining(", "))
-            + "}'::text[]";
-  }
-
-  /** Converts an Integer to a SQL literal expression that can be used in a select statement. */
-  String toSelectExpression(Integer value) {
-    return value == null ? "null" : value.toString();
-  }
-
-  /** Converts a Boolean to a SQL literal expression that can be used in a select statement. */
-  String toSelectExpression(Boolean value) {
-    return value == null ? "null" : (value ? "'t'" : "'f'");
-  }
-
   public String getName() {
     return name;
   }
@@ -134,21 +85,10 @@ public class SystemVariable {
     return spannerType;
   }
 
-  public String getExtension() {
-    return extension;
-  }
-
   /** Returns the value of this setting. */
   public String getValue() {
     return value;
   }
-
-  /** Initializes the value of the setting without checking for validity. */
-  void initSettingValue(String value) {
-    this.value = value;
-  }
-
-  void initConnectionValue(String value) {}
 
   /**
    * Sets the value for this setting. Throws {@link SpannerException} if the value is not valid, or
@@ -162,31 +102,8 @@ public class SystemVariable {
     this.value = value;
   }
 
-  boolean isSettable() {
-    return !readOnly;
-  }
-
   private String checkValidValue(String value) {
     // TODO implement this.
     return value;
-  }
-
-  static SpannerException invalidBoolError(String key) {
-    return SpannerExceptionFactory.newSpannerException(
-        ErrorCode.INVALID_ARGUMENT,
-        String.format("parameter \"%s\" requires a Boolean value", key));
-  }
-
-  static SpannerException invalidValueError(String key, String value) {
-    return SpannerExceptionFactory.newSpannerException(
-        ErrorCode.INVALID_ARGUMENT,
-        String.format("invalid value for parameter \"%s\": \"%s\"", key, value));
-  }
-
-  static MyException invalidEnumError(String key, String value, String[] enumVals) {
-    return MyException.newBuilder(
-            String.format("invalid value for parameter \"%s\": \"%s\"", key, value))
-        .setHints(String.format("Available values: %s.", String.join(", ", enumVals)))
-        .build();
   }
 }
