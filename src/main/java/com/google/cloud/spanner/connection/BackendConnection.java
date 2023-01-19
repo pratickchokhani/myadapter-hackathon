@@ -24,7 +24,6 @@ import com.google.cloud.spanner.InstanceNotFoundException;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.myadapter.WireProtocolHandler;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
