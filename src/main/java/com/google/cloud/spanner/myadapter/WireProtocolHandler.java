@@ -26,6 +26,7 @@ import com.google.cloud.spanner.myadapter.wireinput.PingMessage;
 import com.google.cloud.spanner.myadapter.wireinput.QueryMessage;
 import com.google.cloud.spanner.myadapter.wireinput.ServerHandshakeMessage;
 import com.google.cloud.spanner.myadapter.wireinput.TerminateMessage;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,7 +62,7 @@ public class WireProtocolHandler {
       while (sessionState.getProtocolStatus() != ProtocolStatus.TERMINATED) {
         processNextMessage();
         if (sessionState.getProtocolStatus() == ProtocolStatus.AUTHENTICATED) {
-          System.out.println("connecting to spanner");
+          logger.log(Level.INFO, "Client authentication established!");
           backendConnection.connectToSpanner("test", null);
           sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
         }
@@ -72,10 +73,16 @@ public class WireProtocolHandler {
   }
 
   private void processNextMessage() throws Exception {
-    HeaderMessage headerMessage = parseHeaderMessage(connectionMetadata);
+    HeaderMessage headerMessage;
+    try {
+      headerMessage = parseHeaderMessage(connectionMetadata);
+    } catch (EOFException e) {
+      sessionState.setProtocolStatus(ProtocolStatus.TERMINATED);
+      return;
+    }
     switch (sessionState.getProtocolStatus()) {
       case SERVER_GREETINGS_SENT:
-        System.out.println("unauthenticated message");
+        logger.log(Level.FINE, "Processing client handshake!");
         ClientHandshakeMessage clientHandshakeMessage = new ClientHandshakeMessage(headerMessage);
         commandHandler.processMessage(clientHandshakeMessage);
         break;

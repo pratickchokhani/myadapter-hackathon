@@ -24,15 +24,19 @@ import com.google.cloud.spanner.InstanceNotFoundException;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.myadapter.WireProtocolHandler;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
 public class BackendConnection {
+  private static final Logger logger = Logger.getLogger(BackendConnection.class.getName());
 
   private static final String CHANNEL_PROVIDER_PROPERTY = "CHANNEL_PROVIDER";
 
@@ -82,9 +86,9 @@ public class BackendConnection {
           ConnectionOptionsHelper.setCredentials(connectionOptionsBuilder, credentials);
     }
     ConnectionOptions connectionOptions = connectionOptionsBuilder.build();
-    System.out.println("Connecting to spanner");
+    logger.log(Level.INFO, "Connecting to spanner!");
     Connection spannerConnection = connectionOptions.getConnection();
-    System.out.println("Spanner connected");
+    logger.log(Level.INFO, "Spanner connection establised!");
     try {
       // Note: Calling getDialect() will cause a SpannerException if the connection itself is
       // invalid, for example as a result of the credentials being wrong.

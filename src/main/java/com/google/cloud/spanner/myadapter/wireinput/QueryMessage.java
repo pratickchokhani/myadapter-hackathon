@@ -34,7 +34,6 @@ public class QueryMessage extends WireMessage {
     byte parameterSetCount = (byte) this.bufferedInputStream.read();
 
     this.originalStatement = Statement.of(this.readAll());
-    System.out.println("flog: received query : " + this.originalStatement.getSql());
   }
 
   @Override
