@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 
 public class TimestampParser extends Parser<Timestamp> {
   private static final DateTimeFormatter TIMESTAMP_OUTPUT_FORMATTER =
@@ -30,6 +31,7 @@ public class TimestampParser extends Parser<Timestamp> {
           .parseLenient()
           .parseCaseInsensitive()
           .appendPattern("yyyy-MM-dd HH:mm:ss")
+          .appendFraction(ChronoField.NANO_OF_SECOND, 0, 6, true)
           .toFormatter();
 
   TimestampParser(ResultSet item, int position) {
