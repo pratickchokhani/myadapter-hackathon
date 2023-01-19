@@ -6,6 +6,7 @@ package com.google.cloud.myspan.service;
 import com.google.cloud.myspan.dao.SingersDao;
 import com.google.cloud.myspan.entity.Albums;
 import com.google.cloud.myspan.entity.Concerts;
+import com.google.cloud.myspan.entity.MultiEntryIds;
 import com.google.cloud.myspan.entity.Singers;
 import com.google.cloud.myspan.entity.Tracks;
 import com.google.cloud.myspan.entity.TracksId;
@@ -39,6 +40,10 @@ public class SingerService {
     return singersDao.getAlbum(albumId);
   }
 
+  public Singers getSingers(UUID singers) {
+    return singersDao.getSingers(singers);
+  }
+
   public Albums updateAlbumMarketingBudget(UUID albumId, String marketingBudget) {
     Albums albums = singersDao.getAlbum(albumId);
     albums.setMarketingBudget(new BigDecimal(marketingBudget));
@@ -54,23 +59,22 @@ public class SingerService {
     return singersDao.insertSinger(new Singers(firstName, lastName));
   }
 
-  public void rollback() {
-    singersDao.rollbackTest(new Singers("Pratick", "Chokhani"));
+  public UUID rollback() {
+    return singersDao.rollbackTest(new Singers("Pratick", "Chokhani"));
   }
 
-  public TracksId addTracksWithSingers(String trackName, int trackNumber, int sampleRate,
+  public MultiEntryIds addTracksWithSingers(String trackName, int trackNumber, int sampleRate,
       String concertName, String venueName, String venueDescription, String albumName,
       String marketingBudget, String singerFirstName, String singerLastName) {
 
-    final Singers singers = Utils.createSingers();
-    // singersDao.insertSinger(singers);
-
+    final Singers singers = Utils.createSingers(singerFirstName, singerLastName);
     final Albums albums = Utils.createAlbums(singers, albumName, marketingBudget);
     final Venues venues = Utils.createVenue(venueName, venueDescription);
     final Concerts concerts1 = Utils.createConcerts(singers, venues, concertName);
-    final Tracks tracks1 = Utils.createTracks(albums.getId(), trackName);
+    final Tracks tracks1 = Utils.createTracks(albums.getId(), trackName, trackNumber, sampleRate);
     singersDao.multiObjectsInTransaction(singers, albums, venues, concerts1, tracks1);
-    return tracks1.getId();
+    return new MultiEntryIds(tracks1.getId(), albums.getId(), concerts1.getId(), singers.getId(),
+        venues.getId());
   }
 
 

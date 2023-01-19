@@ -2,6 +2,7 @@ package com.google.cloud.myspan.controller;
 
 import com.google.cloud.myspan.entity.Albums;
 import com.google.cloud.myspan.entity.Concerts;
+import com.google.cloud.myspan.entity.MultiEntryIds;
 import com.google.cloud.myspan.entity.Singers;
 import com.google.cloud.myspan.entity.Tracks;
 import com.google.cloud.myspan.entity.TracksId;
@@ -29,7 +30,7 @@ public class SingersController {
   }
 
   @RequestMapping(value = "/multi-table-entry", method = RequestMethod.GET, produces = "application/json")
-  public TracksId multiTableEntry(String trackName, int trackNumber, int sampleRate,
+  public MultiEntryIds multiTableEntry(String trackName, int trackNumber, int sampleRate,
       String concertName,
       String venueName, String venueDescription, String albumName, String marketingBudget,
       String singerFirstName, String singerLastName) {
@@ -54,6 +55,11 @@ public class SingersController {
     return singerService.getAlbum(UUID.fromString(albumId));
   }
 
+  @RequestMapping(value = "/get-singers", method = RequestMethod.GET, produces = "application/json")
+  public Singers getSingers(String singerId) {
+    return singerService.getSingers(UUID.fromString(singerId));
+  }
+
   @RequestMapping(value = "/update-album-marketing-budget", method = RequestMethod.GET, produces = "application/json")
   public Albums fetchAlbumTracks(String albumId, String marketingBudget) {
     return singerService.updateAlbumMarketingBudget(UUID.fromString(albumId), marketingBudget);
@@ -66,9 +72,9 @@ public class SingersController {
   }
 
   @RequestMapping(value = "/rollback-test", method = RequestMethod.GET, produces = "application/json")
-  public String addSingers() {
-    singerService.rollback();
-    return "Transaction successfully rolled back.";
+  public String rollbackTest() {
+
+    return "Transaction successfully rolled back. Created singers Id: " + singerService.rollback();
   }
 
 }

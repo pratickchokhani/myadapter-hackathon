@@ -21,6 +21,8 @@ public interface SingersDao {
 
     Albums getAlbum(UUID uuid);
 
+    Singers getSingers(UUID uuid);
+
     List<Tracks> getTracks(UUID albumId);
 
     int updateAlbumMarketingBudget(Albums albums);
@@ -35,6 +37,6 @@ public interface SingersDao {
 
     TracksId insertTracks(Tracks tracks);
 
-    void rollbackTest(Singers singers);
+    UUID rollbackTest(Singers singers);
 
 }

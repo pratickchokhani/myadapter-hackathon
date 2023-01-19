@@ -14,6 +14,7 @@
 
 package com.google.cloud.myspan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 import java.util.UUID;
 import javax.persistence.Column;
@@ -44,6 +45,7 @@ public class Singers {
 
   @Column(name = "full_name", insertable = false)
   @Generated(GenerationTime.ALWAYS)
+  @JsonIgnore
   private String fullName;
 
   // @org.hibernate.annotations.Type(type="boolean")

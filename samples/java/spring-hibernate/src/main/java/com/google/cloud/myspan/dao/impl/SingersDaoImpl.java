@@ -42,6 +42,11 @@ public class SingersDaoImpl implements SingersDao {
   }
 
   @Override
+  public Singers getSingers(UUID uuid) {
+    return sessionFactory.openSession().get(Singers.class, uuid);
+  }
+
+  @Override
   public List<Tracks> getTracks(UUID albumId) {
     Criteria cb = sessionFactory.openSession().createCriteria(Tracks.class);
     cb.add(Restrictions.eq("id.id", albumId));
@@ -111,12 +116,13 @@ public class SingersDaoImpl implements SingersDao {
   }
 
   @Override
-  public void rollbackTest(Singers singers) {
+  public UUID rollbackTest(Singers singers) {
     Session session = sessionFactory.openSession();
     session.beginTransaction();
     session.saveOrUpdate(singers);
     session.flush();
     session.getTransaction().rollback();
+    return singers.getId();
   }
 
 }

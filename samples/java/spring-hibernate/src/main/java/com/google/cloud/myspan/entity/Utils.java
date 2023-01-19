@@ -73,6 +73,19 @@ public class Utils {
     return tracks;
   }
 
+  public static Tracks createTracks(UUID albumId, String trackName, int sampleRate,
+      int trackNumber) {
+    final Tracks tracks = new Tracks();
+    tracks.setCreatedAt(new Date());
+    tracks.setTitle(trackName);
+    tracks.setSampleRate(sampleRate);
+    TracksId tracksId = new TracksId();
+    tracksId.setTrackNumber(trackNumber);
+    tracksId.setId(albumId);
+    tracks.setId(tracksId);
+    return tracks;
+  }
+
   public static Venues createVenue(String venueName, String desc) {
     final Venues venues = new Venues();
     venues.setCreatedAt(new Date());
