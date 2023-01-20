@@ -1,5 +1,6 @@
 package com.google.cloud.myspan.dao.impl;
 
+import com.google.cloud.myspan.controller.DemoController;
 import com.google.cloud.myspan.entity.Albums;
 import com.google.cloud.myspan.entity.Concerts;
 import com.google.cloud.myspan.entity.Singers;
@@ -13,6 +14,8 @@ import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.criterion.Restrictions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SingersDaoImpl implements SingersDao {
+  private static final Logger logger = LoggerFactory.getLogger(DemoController.class);
 
   @Autowired
   private SessionFactory sessionFactory;
@@ -120,8 +124,10 @@ public class SingersDaoImpl implements SingersDao {
     Session session = sessionFactory.openSession();
     session.beginTransaction();
     session.saveOrUpdate(singers);
+    logger.info("Added singers: {}", singers);
     session.flush();
     session.getTransaction().rollback();
+    logger.info("Added row has been rolled back.");
     return singers.getId();
   }
 

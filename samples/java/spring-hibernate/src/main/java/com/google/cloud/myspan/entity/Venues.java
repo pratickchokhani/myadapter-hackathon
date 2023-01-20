@@ -123,8 +123,6 @@ public class Venues {
         + createdAt
         + ", updatedAt="
         + updatedAt
-        + ", concerts="
-        + concerts
         + '}';
   }
 }
