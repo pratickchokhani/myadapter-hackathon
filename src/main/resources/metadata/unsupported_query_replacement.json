@@ -41,18 +41,20 @@
     },
     {
       "inputCommand": "show databases",
+      "outputCommand": "with select_database as (SELECT  'hibernate_mysql'  AS Database) select * from select_database;",
       "matcherArray": [
         "COMPLETE"
       ],
-      "action": "RETURN_OK",
+      "action": "REPLACE",
       "blurb": "MySql client queries in background."
     },
     {
       "inputCommand": "show tables",
+      "outputCommand": "SELECT table_name as Tables FROM information_schema.tables WHERE table_schema = '';",
       "matcherArray": [
         "COMPLETE"
       ],
-      "action": "RETURN_OK",
+      "action": "REPLACE",
       "blurb": "MySql client queries in background."
     },
     {
