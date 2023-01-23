@@ -18,7 +18,6 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
-import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.myadapter.command.commands.QueryMessageProcessor;
 import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.common.annotations.VisibleForTesting;
@@ -26,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -36,11 +34,17 @@ import java.util.logging.Logger;
 /** {@link SessionState} contains all session variables for a connection. */
 @InternalApi
 public class SessionState {
+
+  public static final String ONE = "1";
+  public static final String ZERO = "0";
+  public static final ImmutableList<String> SET_NAMES_CHARASETS =
+      ImmutableList.of("character_set_client", "character_set_connection", "character_set_results");
+  public static final String AUTOCOMMIT_KEYWORD = "autocommit";
   private volatile ProtocolStatus protocolStatus;
-  private final BackendConnection backendConnection;
 
   static final Map<String, SystemVariable> GLOBAL_SETTINGS = new HashMap<>();
   private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
+  private static String NAMES = "names";
 
   public enum SessionVariableScope {
     SESSION,
@@ -55,15 +59,13 @@ public class SessionState {
 
   private final Map<String, SystemVariable> settings;
 
-  public SessionState(BackendConnection backendConnection) {
-    this(ImmutableMap.of(), backendConnection);
+  public SessionState() {
+    this(ImmutableMap.of());
   }
 
   @VisibleForTesting
-  SessionState(
-      Map<String, SystemVariable> extraServerSettings, BackendConnection backendConnection) {
+  SessionState(Map<String, SystemVariable> extraServerSettings) {
     this.protocolStatus = ProtocolStatus.CONNECTION_INITIATED;
-    this.backendConnection = backendConnection;
 
     Preconditions.checkNotNull(extraServerSettings);
     this.settings = new HashMap<>(GLOBAL_SETTINGS.size() + extraServerSettings.size());
@@ -106,15 +108,15 @@ public class SessionState {
   }
 
   private void internalSet(String name, String value, Map<String, SystemVariable> variableMap) {
-    if ("names".equals(name)) {
+    if (NAMES.equals(name)) {
       // TODO: Consider handling "SET NAMES" as a separate statement type.
       handleNames(value);
       return;
     }
-    if ("autocommit".equals(name)) {
+    if (AUTOCOMMIT_KEYWORD.equals(name)) {
       // Autocommit value needs to be converted to an integer as internally autocommit is being
       // tracked as integer.
-      value = handleAutocommit(value);
+      value = inferAutocommitValue(value);
     }
     SystemVariable variable = variableMap.get(name);
     if (variable == null) {
@@ -123,25 +125,20 @@ public class SessionState {
     variable.setValue(value);
   }
 
-  private String handleAutocommit(String value) {
+  private String inferAutocommitValue(String value) {
     if (BooleanParser.TRUE_VALUES.contains(value)) {
-      backendConnection.processSetAutocommit();
-      return "1";
+      return ONE;
     }
     if (BooleanParser.FALSE_VALUES.contains(value)) {
-      backendConnection.processUnsetAutocommit();
-      return "0";
+      return ZERO;
     }
     throw invalidValueError("autocommit", value);
   }
 
   private void handleNames(String value) {
     logger.log(Level.INFO, () -> String.format("Setting all character sets to %s", value));
-    List<String> charasets =
-        ImmutableList.of(
-            "character_set_client", "character_set_connection", "character_set_results");
     Map<String, SystemVariable> variableMap = getVariableMapForScope(SessionVariableScope.SESSION);
-    for (String charset : charasets) {
+    for (String charset : SET_NAMES_CHARASETS) {
       SystemVariable variable = variableMap.get(charset);
       Preconditions.checkNotNull(variable);
       variable.setValue(value);
@@ -165,7 +162,7 @@ public class SessionState {
   static SpannerException invalidValueError(String key, String value) {
     return SpannerExceptionFactory.newSpannerException(
         ErrorCode.INVALID_ARGUMENT,
-        String.format("Value \"%s\" cannot be set for system variable ", key));
+        String.format("Variable \"%s\" can't be set to the value of ", key, value));
   }
 
   static SpannerException unknownParamError(String key) {
@@ -176,6 +173,6 @@ public class SessionState {
 
   static SpannerException unknownVariableError(String key) {
     return SpannerExceptionFactory.newSpannerException(
-        ErrorCode.INVALID_ARGUMENT, String.format("No system variable named \"%s\"", key));
+        ErrorCode.INVALID_ARGUMENT, String.format("Unknown system variable '%s'", key));
   }
 }

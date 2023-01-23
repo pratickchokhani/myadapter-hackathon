@@ -26,6 +26,8 @@ import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser.SessionStatement;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
 import com.google.cloud.spanner.myadapter.translator.models.QueryAction;
@@ -87,9 +89,17 @@ public class QueryMessageProcessor extends MessageProcessor {
       }
       parsedStatement = PARSER.parse(queryReplacement.getOutputQuery());
       try {
-        StatementResult statementResult =
-            backendConnection.executeQuery(
-                queryReplacement.getOutputQuery(), parsedStatement, sessionState);
+        StatementResult statementResult;
+        SessionStatement sessionStatement = SessionStatementParser.parse(parsedStatement);
+        if (sessionStatement != null) {
+          statementResult =
+              backendConnection.executeSessionStatement(sessionStatement, sessionState);
+        } else {
+          statementResult =
+              backendConnection.executeQuery(
+                  queryReplacement.getOutputQuery(), parsedStatement, sessionState);
+        }
+
         switch (statementResult.getResultType()) {
           case RESULT_SET:
             processResultSet(statementResult.getResultSet(), queryReplacement);
@@ -119,6 +129,7 @@ public class QueryMessageProcessor extends MessageProcessor {
     int rowsSent = 0;
     // ResultSet cannot be accessed for pre-populated result sets without calling .next() at least
     // once. We create pre-populated result sets for things like system variable queries.
+
     while (resultSet.next()) {
       if (rowsSent < 1) {
         sendColumnDefinitions(resultSet, queryReplacement);

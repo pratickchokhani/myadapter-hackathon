@@ -27,14 +27,16 @@ import com.google.cloud.spanner.Type.Code;
 import com.google.cloud.spanner.Type.StructField;
 import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.connection.AbstractStatementParser.StatementType;
-import com.google.cloud.spanner.connection.BackendConnection.QueryResult;
-import com.google.cloud.spanner.connection.BackendConnection.UpdateCount;
+import com.google.cloud.spanner.connection.BackendConnection;
 import com.google.cloud.spanner.connection.StatementResult;
+import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.cloud.spanner.myadapter.parsers.Parser;
 import com.google.cloud.spanner.myadapter.session.SessionState;
 import com.google.cloud.spanner.myadapter.session.SessionState.SessionVariableScope;
 import com.google.cloud.spanner.myadapter.session.SystemVariable;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser.TableOrIndexName;
+import com.google.cloud.spanner.myadapter.utils.QueryResult;
+import com.google.cloud.spanner.myadapter.utils.UpdateCount;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import javax.annotation.Nullable;
@@ -42,8 +44,20 @@ import javax.annotation.Nullable;
 /** Simple parser for session management commands (SET/SHOW/RESET variable_name) */
 @InternalApi
 public class SessionStatementParser {
+
+  public static final String SET_KEYWORD = "set";
+  public static final String SELECT_KEYWORD = "select";
+  public static final String NAMES_KEYWORD = "names";
+  public static final String EQUALS_SIGN = "=";
+  public static final String GLOBAL_KEYWORD = "global";
+  public static final String AS_KEYWORD = "as";
+  public static final String FROM_KEYWORD = "FROM";
+  public static final String SYSTEM_VARIABLE_PREFIX = "@@";
+  public static final String UD_VARIABLE_PREFIX = "@";
+
   public abstract static class SessionStatement {
-    public abstract StatementResult execute(SessionState sessionState);
+    public abstract StatementResult execute(
+        SessionState sessionState, BackendConnection backendConnection);
   }
 
   static class VariableColumn {
@@ -92,7 +106,7 @@ public class SessionStatementParser {
     }
   }
 
-  static class SetStatement extends SessionStatement {
+  public static class SetStatement extends SessionStatement {
     static class Builder {
       boolean systemVariable = false;
       SessionVariableScope scope = SessionVariableScope.SESSION;
@@ -126,21 +140,35 @@ public class SessionStatementParser {
 
     boolean systemVariable;
     SessionVariableScope scope;
-    String name;
-    String value;
+    String variableName;
+    String variableValue;
 
     SetStatement(Builder builder) {
       this.systemVariable = builder.systemVariable;
       this.scope = builder.scope;
-      this.name = builder.name;
-      this.value = builder.value;
+      this.variableName = builder.name;
+      this.variableValue = builder.value;
     }
 
     @Override
-    public StatementResult execute(SessionState sessionState) {
-      sessionState.set(name, value, scope);
+    public StatementResult execute(SessionState sessionState, BackendConnection backendConnection) {
+      setStatementPreHook(backendConnection);
+      sessionState.set(variableName, variableValue, scope);
+      setStatementPostHook();
       return new UpdateCount(0L);
     }
+
+    private void setStatementPreHook(BackendConnection backendConnection) {
+      if (SessionState.AUTOCOMMIT_KEYWORD.equals(variableName)) {
+        if (BooleanParser.TRUE_VALUES.contains(variableValue)) {
+          backendConnection.processSetAutocommit();
+        } else if (BooleanParser.FALSE_VALUES.contains(variableValue)) {
+          backendConnection.processUnsetAutocommit();
+        }
+      }
+    }
+
+    private void setStatementPostHook() {}
   }
 
   static class SelectStatement extends SessionStatement {
@@ -158,7 +186,7 @@ public class SessionStatementParser {
     }
 
     @Override
-    public StatementResult execute(SessionState sessionState) {
+    public StatementResult execute(SessionState sessionState, BackendConnection backendConnection) {
       ArrayList<StructField> structFields = new ArrayList<Type.StructField>();
       Struct.Builder rowBuilder = Struct.newBuilder();
       for (VariableColumn column : variableColumns) {
@@ -188,12 +216,12 @@ public class SessionStatementParser {
       // client side statement, but it's not a valid GoogleSQL statement.
     }
     SimpleParser parser = new SimpleParser(parsedStatement.getSqlWithoutComments());
-    if (parser.eatKeyword("set")) {
+    if (parser.eatKeyword(SET_KEYWORD)) {
       return parseSetStatement(parser);
     }
-    if (parser.eatKeyword("select")
-        && !parser.peek(true, true, "FROM")
-        && parser.peek(true, false, "@@")) {
+    if (parser.eatKeyword(SELECT_KEYWORD)
+        && !parser.peek(true, true, FROM_KEYWORD)
+        && parser.peek(true, false, SYSTEM_VARIABLE_PREFIX)) {
       return parseSelectStatement(parser);
     }
 
@@ -201,12 +229,14 @@ public class SessionStatementParser {
   }
 
   static SetStatement parseSetStatement(SimpleParser parser) {
+    // TODO: Support a comma separated list of session variable assignments. Righ now only a
+    // single variable is allowed.
     SetStatement.Builder builder = new SetStatement.Builder();
-    if (parser.eatKeyword("names")) {
+    if (parser.eatKeyword(NAMES_KEYWORD)) {
       builder.systemVariable();
-      builder.name("names");
+      builder.name(NAMES_KEYWORD);
     } else {
-      if (parser.eatToken("@@") || !parser.eatToken("@")) {
+      if (parser.eatToken(SYSTEM_VARIABLE_PREFIX) || !parser.eatToken(UD_VARIABLE_PREFIX)) {
         // This is a system variable
         builder.systemVariable();
       }
@@ -220,12 +250,12 @@ public class SessionStatementParser {
                 + ". Expected configuration parameter name.");
       }
 
-      if ("global".equals(name.getUnquotedSchema())) {
+      if (GLOBAL_KEYWORD.equals(name.getUnquotedSchema())) {
         builder.global();
       }
 
       builder.name(name.getUnquotedName());
-      if (!parser.eatToken("=")) {
+      if (!parser.eatToken(EQUALS_SIGN)) {
         throw SpannerExceptionFactory.newSpannerException(
             ErrorCode.INVALID_ARGUMENT,
             "Invalid SET statement: " + parser.getSql() + ". Expected =.");
@@ -259,7 +289,8 @@ public class SessionStatementParser {
       SimpleParser expressionParser = new SimpleParser(expression);
       VariableColumn.Builder columnBuilder = new VariableColumn.Builder();
       String columnName = expression.trim();
-      if (expressionParser.eatToken("@@") || !expressionParser.eatToken("@")) {
+      if (expressionParser.eatToken(SYSTEM_VARIABLE_PREFIX)
+          || !expressionParser.eatToken(UD_VARIABLE_PREFIX)) {
         columnBuilder.setSystemVariable();
       }
       TableOrIndexName name = expressionParser.readTableOrIndexName();
@@ -269,11 +300,11 @@ public class SessionStatementParser {
             "Invalid SELECT statement expression: " + expressionParser.getSql());
       }
 
-      if ("global".equals(name.getUnquotedSchema())) {
+      if (GLOBAL_KEYWORD.equals(name.getUnquotedSchema())) {
         columnBuilder.setGlobal();
       }
 
-      if (expressionParser.eatKeyword("as")) {
+      if (expressionParser.eatKeyword(AS_KEYWORD)) {
         columnName = expressionParser.readKeyword();
       }
       columnBuilder.columnName(columnName);

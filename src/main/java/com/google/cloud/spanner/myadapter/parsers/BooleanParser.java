@@ -24,7 +24,7 @@ import java.util.Set;
  */
 @InternalApi
 public class BooleanParser extends Parser<Boolean> {
-  static final byte[] TRUE_VALUE_BYTES = new byte[] {'1'};
+  private static final byte[] TRUE_VALUE_BYTES = new byte[] {'1'};
   private static final byte[] FALSE_VALUE_BYTES = new byte[] {'0'};
   public static final Set<String> TRUE_VALUES = ImmutableSet.of("true", "1");
   public static final Set<String> FALSE_VALUES = ImmutableSet.of("false", "0");

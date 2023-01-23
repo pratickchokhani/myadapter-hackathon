@@ -30,7 +30,6 @@ public class SystemVariable {
   private static final int DATATYPE_INDEX = 1;
   private static final int VALUE_INDEX = 2;
 
-  private String extension;
   private String name;
   private Type spannerType;
   private String value;
@@ -52,7 +51,6 @@ public class SystemVariable {
     String[] values = line.split("\t");
     Preconditions.checkArgument(values.length == 3);
     return new SystemVariable(
-        null,
         parseString(values[NAME_INDEX]),
         Converter.typeCodeToSpannerType(parseString(values[DATATYPE_INDEX])),
         parseString(values[VALUE_INDEX]));
@@ -65,8 +63,7 @@ public class SystemVariable {
     return value;
   }
 
-  SystemVariable(String extension, String name, Type variableType, String value) {
-    this.extension = extension;
+  SystemVariable(String name, Type variableType, String value) {
     this.name = name;
     this.spannerType = variableType;
     this.value = value;
@@ -74,7 +71,7 @@ public class SystemVariable {
 
   /** Returns a copy of this {@link SystemVariable}. */
   SystemVariable copy() {
-    return new SystemVariable(null, name, spannerType, value);
+    return new SystemVariable(name, spannerType, value);
   }
 
   public String getName() {
