@@ -42,18 +42,18 @@ public class SessionState {
   public static final String AUTOCOMMIT_KEYWORD = "autocommit";
   private volatile ProtocolStatus protocolStatus;
 
-  static final Map<String, SystemVariable> GLOBAL_SETTINGS = new HashMap<>();
+  static final Map<String, SystemVariable> DEFAULT_SETTINGS = new HashMap<>();
   private static final Logger logger = Logger.getLogger(QueryMessageProcessor.class.getName());
   private static String NAMES = "names";
 
-  public enum SessionVariableScope {
-    SESSION,
-    GLOBAL
+  public enum SessionVariableType {
+    SYSTEM,
+    USER_DEFINED
   }
 
   static {
     for (SystemVariable setting : SystemVariable.read()) {
-      GLOBAL_SETTINGS.put(setting.getName().toLowerCase(Locale.ROOT), setting);
+      DEFAULT_SETTINGS.put(setting.getName().toLowerCase(Locale.ROOT), setting);
     }
   }
 
@@ -68,8 +68,8 @@ public class SessionState {
     this.protocolStatus = ProtocolStatus.CONNECTION_INITIATED;
 
     Preconditions.checkNotNull(extraServerSettings);
-    this.settings = new HashMap<>(GLOBAL_SETTINGS.size() + extraServerSettings.size());
-    for (Entry<String, SystemVariable> entry : GLOBAL_SETTINGS.entrySet()) {
+    this.settings = new HashMap<>(DEFAULT_SETTINGS.size() + extraServerSettings.size());
+    for (Entry<String, SystemVariable> entry : DEFAULT_SETTINGS.entrySet()) {
       this.settings.put(entry.getKey(), entry.getValue().copy());
     }
     for (Entry<String, SystemVariable> entry : extraServerSettings.entrySet()) {
@@ -85,11 +85,9 @@ public class SessionState {
     this.protocolStatus = protocolStatus;
   }
 
-  Map<String, SystemVariable> getVariableMapForScope(SessionVariableScope scope) {
+  Map<String, SystemVariable> getVariableMapForType(SessionVariableType scope) {
     switch (scope) {
-      case GLOBAL:
-        return GLOBAL_SETTINGS;
-      case SESSION:
+      case SYSTEM:
         return settings;
       default:
         throw unknownParamError("scope");
@@ -99,11 +97,11 @@ public class SessionState {
    * Sets the value of the specified setting. The new value will be persisted if the current
    * transaction is committed. The value will be lost if the transaction is rolled back.
    */
-  public void set(String name, String value, SessionVariableScope scope) {
+  public void set(String name, String value, SessionVariableType scope) {
     logger.log(
         Level.INFO,
         () -> String.format("Setting system variable %s to %s at scope %s", name, value, scope));
-    Map<String, SystemVariable> variableMap = getVariableMapForScope(scope);
+    Map<String, SystemVariable> variableMap = getVariableMapForType(scope);
     internalSet(name.toLowerCase(Locale.ROOT), value, variableMap);
   }
 
@@ -137,7 +135,7 @@ public class SessionState {
 
   private void handleNames(String value) {
     logger.log(Level.INFO, () -> String.format("Setting all character sets to %s", value));
-    Map<String, SystemVariable> variableMap = getVariableMapForScope(SessionVariableScope.SESSION);
+    Map<String, SystemVariable> variableMap = getVariableMapForType(SessionVariableType.SYSTEM);
     for (String charset : SET_NAMES_CHARASETS) {
       SystemVariable variable = variableMap.get(charset);
       Preconditions.checkNotNull(variable);
@@ -146,8 +144,8 @@ public class SessionState {
   }
 
   /** Returns the current value of the specified setting. */
-  public SystemVariable get(String name, SessionVariableScope scope) {
-    Map<String, SystemVariable> variableMap = getVariableMapForScope(scope);
+  public SystemVariable get(String name, SessionVariableType scope) {
+    Map<String, SystemVariable> variableMap = getVariableMapForType(scope);
     return internalGet(name.toLowerCase(Locale.ROOT), variableMap);
   }
 

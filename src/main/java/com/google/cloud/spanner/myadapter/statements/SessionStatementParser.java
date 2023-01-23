@@ -32,7 +32,7 @@ import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.parsers.BooleanParser;
 import com.google.cloud.spanner.myadapter.parsers.Parser;
 import com.google.cloud.spanner.myadapter.session.SessionState;
-import com.google.cloud.spanner.myadapter.session.SessionState.SessionVariableScope;
+import com.google.cloud.spanner.myadapter.session.SessionState.SessionVariableType;
 import com.google.cloud.spanner.myadapter.session.SystemVariable;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser.TableOrIndexName;
 import com.google.cloud.spanner.myadapter.utils.QueryResult;
@@ -72,11 +72,6 @@ public class SessionStatementParser {
         return this;
       }
 
-      Builder setGlobal() {
-        this.scope = SessionVariableScope.GLOBAL;
-        return this;
-      }
-
       Builder setSystemVariable() {
         this.systemVariable = true;
         return this;
@@ -88,20 +83,20 @@ public class SessionStatementParser {
 
       String columnName;
       String variableName;
-      SessionVariableScope scope = SessionVariableScope.SESSION;
+      SessionVariableType type = SessionVariableType.SYSTEM;
       boolean systemVariable = false;
     }
 
     String columnName;
     String variableName;
-    SessionVariableScope scope;
+    SessionVariableType type;
     boolean systemVariable;
 
     VariableColumn(Builder builder) {
       this.columnName = builder.columnName;
       ;
       this.variableName = builder.variableName;
-      this.scope = builder.scope;
+      this.type = builder.type;
       this.systemVariable = builder.systemVariable;
     }
   }
@@ -109,17 +104,12 @@ public class SessionStatementParser {
   public static class SetStatement extends SessionStatement {
     static class Builder {
       boolean systemVariable = false;
-      SessionVariableScope scope = SessionVariableScope.SESSION;
+      SessionVariableType type = SessionVariableType.SYSTEM;
       String name = null;
       String value = null;
 
       Builder systemVariable() {
         this.systemVariable = true;
-        return this;
-      }
-
-      Builder global() {
-        this.scope = SessionVariableScope.GLOBAL;
         return this;
       }
 
@@ -139,13 +129,13 @@ public class SessionStatementParser {
     }
 
     boolean systemVariable;
-    SessionVariableScope scope;
+    SessionVariableType type;
     String variableName;
     String variableValue;
 
     SetStatement(Builder builder) {
       this.systemVariable = builder.systemVariable;
-      this.scope = builder.scope;
+      this.type = builder.type;
       this.variableName = builder.name;
       this.variableValue = builder.value;
     }
@@ -153,7 +143,7 @@ public class SessionStatementParser {
     @Override
     public StatementResult execute(SessionState sessionState, BackendConnection backendConnection) {
       setStatementPreHook(backendConnection);
-      sessionState.set(variableName, variableValue, scope);
+      sessionState.set(variableName, variableValue, type);
       setStatementPostHook();
       return new UpdateCount(0L);
     }
@@ -190,7 +180,7 @@ public class SessionStatementParser {
       ArrayList<StructField> structFields = new ArrayList<Type.StructField>();
       Struct.Builder rowBuilder = Struct.newBuilder();
       for (VariableColumn column : variableColumns) {
-        SystemVariable variable = sessionState.get(column.variableName, column.scope);
+        SystemVariable variable = sessionState.get(column.variableName, column.type);
         structFields.add(StructField.of(column.columnName, variable.getType()));
         rowBuilder
             .set(column.columnName)
@@ -251,7 +241,8 @@ public class SessionStatementParser {
       }
 
       if (GLOBAL_KEYWORD.equals(name.getUnquotedSchema())) {
-        builder.global();
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT, "Global session variables are not supported");
       }
 
       builder.name(name.getUnquotedName());
@@ -301,7 +292,8 @@ public class SessionStatementParser {
       }
 
       if (GLOBAL_KEYWORD.equals(name.getUnquotedSchema())) {
-        columnBuilder.setGlobal();
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT, "Global session variables are not supported");
       }
 
       if (expressionParser.eatKeyword(AS_KEYWORD)) {
