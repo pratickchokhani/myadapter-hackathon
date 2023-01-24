@@ -61,7 +61,6 @@ public class WireProtocolHandler {
       while (sessionState.getProtocolStatus() != ProtocolStatus.TERMINATED) {
         processNextMessage();
         if (sessionState.getProtocolStatus() == ProtocolStatus.AUTHENTICATED) {
-          System.out.println("connecting to spanner");
           backendConnection.connectToSpanner("test", null);
           sessionState.setProtocolStatus(ProtocolStatus.QUERY_WAIT);
         }
@@ -75,12 +74,12 @@ public class WireProtocolHandler {
     HeaderMessage headerMessage = parseHeaderMessage(connectionMetadata);
     switch (sessionState.getProtocolStatus()) {
       case SERVER_GREETINGS_SENT:
-        System.out.println("unauthenticated message");
+        logger.log(Level.FINE, "Sending server greeting");
         ClientHandshakeMessage clientHandshakeMessage = new ClientHandshakeMessage(headerMessage);
         commandHandler.processMessage(clientHandshakeMessage);
         break;
       case QUERY_WAIT:
-        logger.log(Level.FINE, "Processing next command!");
+        logger.log(Level.FINE, "Processing next command");
         nextCommandMessage(headerMessage);
         break;
       default:

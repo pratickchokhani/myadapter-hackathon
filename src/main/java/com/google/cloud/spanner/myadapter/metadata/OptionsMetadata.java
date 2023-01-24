@@ -93,6 +93,7 @@ public class OptionsMetadata {
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Logger logger = Logger.getLogger(OptionsMetadata.class.getName());
   private static final String DEFAULT_SERVER_VERSION = "8.0.31";
+  // TODO change user agent to myspan-adapter or appropriate.
   private static final String DEFAULT_USER_AGENT = "pg-adapter";
 
   private static final String QUERY_TRANSLATOR_FILE_PATH = "j";
@@ -108,7 +109,7 @@ public class OptionsMetadata {
   private static final String OPTION_CREDENTIALS_FILE = "c";
   private static final String OPTION_DISABLE_LOCALHOST_CHECK = "x";
   private static final String CLI_ARGS =
-      "pgadapter -p <project> -i <instance> -d <database> -c <credentials_file>";
+      "myadapter -p <project> -i <instance> -d <database> -c <credentials_file>";
   private static final String OPTION_HELP = "h";
   private static final String DEFAULT_PORT = "3306";
   private static final int MIN_PORT = 0, MAX_PORT = 65535;

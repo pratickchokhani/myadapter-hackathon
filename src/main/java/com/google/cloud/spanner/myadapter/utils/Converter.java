@@ -87,8 +87,8 @@ public class Converter {
     return buffer.toByteArray();
   }
 
-  public static byte convertToMySqlCode(Type spannerType) {
-    switch (spannerType.getCode()) {
+  public static byte convertToMySqlCode(Type.Code spannerTypeCode) {
+    switch (spannerTypeCode) {
       case BOOL:
         return (byte) MYSQL_TYPE_TINYINT.type;
       case INT64:
@@ -108,7 +108,30 @@ public class Converter {
       case JSON:
         return (byte) MYSQL_TYPE_JSON.type;
       default:
-        throw new IllegalArgumentException("Illegal or unknown element type: " + spannerType);
+        throw new IllegalArgumentException("Illegal or unknown element type: " + spannerTypeCode);
+    }
+  }
+
+  public static Type typeCodeToSpannerType(String spannerTypeCode) {
+    return typeCodeToSpannerType(Enum.valueOf(Type.Code.class, spannerTypeCode));
+  }
+
+  public static Type typeCodeToSpannerType(Type.Code spannerTypeCode) {
+    switch (spannerTypeCode) {
+      case INT64:
+        return Type.int64();
+      case STRING:
+        return Type.string();
+      case FLOAT64:
+        return Type.float64();
+      case BYTES:
+        return Type.bytes();
+      case DATE:
+        return Type.date();
+      case TIMESTAMP:
+        return Type.timestamp();
+      default:
+        throw new IllegalArgumentException("Illegal or unknown element type: " + spannerTypeCode);
     }
   }
 }

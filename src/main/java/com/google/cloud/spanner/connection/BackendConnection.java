@@ -24,10 +24,13 @@ import com.google.cloud.spanner.InstanceNotFoundException;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.myadapter.error.MyException;
 import com.google.cloud.spanner.myadapter.error.SQLState;
 import com.google.cloud.spanner.myadapter.error.Severity;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
+import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser.SessionStatement;
 import java.util.Map.Entry;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -111,8 +114,15 @@ public class BackendConnection {
     this.databaseId = connectionOptions.getDatabaseId();
   }
 
-  public StatementResult executeQuery(Statement originalStatement) {
-    return spannerConnection.execute(originalStatement);
+  public StatementResult executeQuery(
+      Statement statement, ParsedStatement parsedStatement, SessionState sessionState) {
+    return spannerConnection.execute(statement);
+  }
+
+  public StatementResult executeSessionStatement(
+      SessionStatement sessionStatement, SessionState sessionState) {
+    StatementResult statementResult = sessionStatement.execute(sessionState, this);
+    return statementResult;
   }
 
   public void terminate() {
@@ -144,5 +154,16 @@ public class BackendConnection {
       }
     }
     return result.toString();
+  }
+
+  public void processSetAutocommit() {
+    if (this.isTransactionActive()) {
+      this.commit();
+    }
+    this.setAutocommit(true);
+  }
+
+  public void processUnsetAutocommit() {
+    this.setAutocommit(false);
   }
 }
