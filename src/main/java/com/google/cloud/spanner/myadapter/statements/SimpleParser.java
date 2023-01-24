@@ -174,13 +174,13 @@ public class SimpleParser {
     }
   }
 
-  static String unquoteOrFoldIdentifier(String identifier) {
+  public static String unquoteOrFoldIdentifier(String identifier) {
     if (Strings.isNullOrEmpty(identifier)) {
       return null;
     }
-    if (identifier.charAt(0) == '"'
-        && identifier.charAt(identifier.length() - 1) == '"'
-        && identifier.length() > 1) {
+    if ((identifier.charAt(0) == '"' && identifier.charAt(identifier.length() - 1) == '"')
+        || (identifier.charAt(0) == '\'' && identifier.charAt(identifier.length() - 1) == '\'')
+            && identifier.length() > 1) {
       return identifier.substring(1, identifier.length() - 1);
     }
     return identifier.toLowerCase();
@@ -522,7 +522,7 @@ public class SimpleParser {
   }
 
   private boolean isValidIdentifierChar(char c) {
-    return isValidIdentifierFirstChar(c) || Character.isDigit(c) || c == '$';
+    return isValidIdentifierFirstChar(c) || Character.isDigit(c) || c == '$' || c == '_';
   }
 
   boolean peekKeyword(String keyword) {

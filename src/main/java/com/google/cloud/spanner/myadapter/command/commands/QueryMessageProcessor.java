@@ -26,6 +26,8 @@ import com.google.cloud.spanner.connection.StatementResult;
 import com.google.cloud.spanner.myadapter.metadata.ConnectionMetadata;
 import com.google.cloud.spanner.myadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.myadapter.session.SessionState;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser;
+import com.google.cloud.spanner.myadapter.statements.SessionStatementParser.SessionStatement;
 import com.google.cloud.spanner.myadapter.statements.SimpleParser;
 import com.google.cloud.spanner.myadapter.translator.QueryTranslator;
 import com.google.cloud.spanner.myadapter.translator.models.QueryAction;
@@ -77,21 +79,27 @@ public class QueryMessageProcessor extends MessageProcessor {
       logger.log(
           Level.INFO, () -> String.format("SQL query being processed: %s.", statement.getSql()));
 
-      if (originalStatement.getSql().startsWith("SET ")) {
-        processSetCommand(originalStatement);
-        continue;
-      }
-
       ParsedStatement parsedStatement = PARSER.parse(originalStatement);
       QueryReplacement queryReplacement =
           queryTranslator.translatedQuery(parsedStatement, originalStatement);
       if (queryReplacement.getAction() == QueryAction.RETURN_OK) {
-        new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+        currentSequenceNumber =
+            new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
         continue;
       }
+      parsedStatement = PARSER.parse(queryReplacement.getOutputQuery());
       try {
-        StatementResult statementResult =
-            backendConnection.executeQuery(queryReplacement.getOutputQuery());
+        StatementResult statementResult;
+        SessionStatement sessionStatement = SessionStatementParser.parse(parsedStatement);
+        if (sessionStatement != null) {
+          statementResult =
+              backendConnection.executeSessionStatement(sessionStatement, sessionState);
+        } else {
+          statementResult =
+              backendConnection.executeQuery(
+                  queryReplacement.getOutputQuery(), parsedStatement, sessionState);
+        }
+
         switch (statementResult.getResultType()) {
           case RESULT_SET:
             processResultSet(statementResult.getResultSet(), queryReplacement);
@@ -116,33 +124,26 @@ public class QueryMessageProcessor extends MessageProcessor {
     }
   }
 
-  private void processSetCommand(Statement originalStatement) throws IOException {
-    if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=0")) {
-      processUnsetAutocommit();
-    } else if (originalStatement.getSql().equalsIgnoreCase("Set autocommit=1")) {
-      processSetAutocommit();
-    }
-    new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
-  }
-
-  private void processSetAutocommit() {
-    if (backendConnection.isTransactionActive()) {
-      backendConnection.commit();
-    }
-    backendConnection.setAutocommit(true);
-  }
-
-  private void processUnsetAutocommit() {
-    backendConnection.setAutocommit(false);
-  }
-
   private void processResultSet(ResultSet resultSet, QueryReplacement queryReplacement)
       throws Exception {
-    sendColumnDefinitions(resultSet, queryReplacement);
+    int rowsSent = 0;
+    // ResultSet cannot be accessed for pre-populated result sets without calling .next() at least
+    // once. We create pre-populated result sets for things like system variable queries.
+
     while (resultSet.next()) {
+      if (rowsSent < 1) {
+        sendColumnDefinitions(resultSet, queryReplacement);
+      }
       sendResultSetRow(resultSet, queryReplacement);
+      rowsSent++;
     }
-    currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+
+    // Clients expect an Ok response if no rows were sent, otherwise an EOF response.
+    if (rowsSent < 1) {
+      currentSequenceNumber = new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
+    } else {
+      currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+    }
   }
 
   private void sendResultSetRow(ResultSet resultSet, QueryReplacement queryReplacement)
@@ -162,6 +163,7 @@ public class QueryMessageProcessor extends MessageProcessor {
           new ColumnDefinitionResponse.Builder(currentSequenceNumber, connectionMetadata);
       // TODO : Assess how does fields like schema, table, originalTable affects the client, and
       // properly populate them.
+      resultSet.getType().getStructFields().get(i).getType().getCode();
       currentSequenceNumber =
           builder
               .schema("schemaName")
@@ -169,14 +171,16 @@ public class QueryMessageProcessor extends MessageProcessor {
               .originalTable("oTableName")
               .column(
                   queryReplacement.overrideColumn(
-                      resultSet.getMetadata().getRowType().getFields(i).getName()))
+                      resultSet.getType().getStructFields().get(i).getName()))
               .originalColumn("originalColumnName")
               .charset(
                   resultSet.getColumnType(i).getCode() == Code.BYTES
                       ? CHARSET_BINARY
                       : CHARSET_UTF8_MB4)
               .maxColumnLength(20)
-              .columnType(Converter.convertToMySqlCode(resultSet.getColumnType(i)))
+              .columnType(
+                  Converter.convertToMySqlCode(
+                      resultSet.getType().getStructFields().get(i).getType().getCode()))
               .columnDefinitionFlags(0)
               .decimals(0)
               .build()

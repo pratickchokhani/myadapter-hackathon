@@ -37,9 +37,7 @@ public class QueryMessage extends WireMessage {
   }
 
   @Override
-  protected void processRequest() throws Exception {
-    System.out.println("flog: executing query");
-  }
+  protected void processRequest() throws Exception {}
 
   @Override
   protected String getMessageName() {

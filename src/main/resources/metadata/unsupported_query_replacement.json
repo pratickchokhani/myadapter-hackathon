@@ -1,45 +1,6 @@
 {
   "commands": [
     {
-      "inputCommand": "SELECT @@session.transaction_isolation",
-      "outputCommand": "with session_variables as (SELECT  'REPEATABLE-READ' AS transaction_isolation, ) select * from session_variables;",
-      "matcherArray": [
-        "COMPLETE"
-      ],
-      "action": "REPLACE",
-      "columnOverrideType": "PREFIX",
-      "columnOverride": {
-        "prefix": "@@session."
-      },
-      "blurb": "JDBC queries in background."
-    },
-    {
-      "inputCommand": "SELECT @@session.transaction_read_only",
-      "outputCommand": "with session_variables as (SELECT  0 AS transaction_read_only, ) select * from session_variables;",
-      "matcherArray": [
-        "COMPLETE"
-      ],
-      "action": "REPLACE",
-      "columnOverrideType": "PREFIX",
-      "columnOverride": {
-        "prefix": "@@session."
-      },
-      "blurb": "JDBC queries in background."
-    },
-    {
-      "inputCommand": "SELECT  @@session.auto_increment_increment AS auto_increment_increment, @@character_set_client AS character_set_client, @@character_set_connection AS character_set_connection, @@character_set_results AS character_set_results, @@character_set_server AS character_set_server, @@collation_server AS collation_server, @@collation_connection AS collation_connection, @@init_connect AS init_connect, @@interactive_timeout AS interactive_timeout, @@license AS license, @@lower_case_table_names AS lower_case_table_names, @@max_allowed_packet AS max_allowed_packet, @@net_write_timeout AS net_write_timeout, @@performance_schema AS performance_schema, @@sql_mode AS sql_mode, @@system_time_zone AS system_time_zone, @@time_zone AS time_zone, @@transaction_isolation AS transaction_isolation, @@wait_timeout AS wait_timeout",
-      "outputCommand": "with session_variables as (SELECT  1 AS auto_increment_increment, 'utf8mb4' AS character_set_client, 'utf8mb4' AS character_set_connection, 'utf8mb4' AS character_set_results, 'utf8mb4' AS character_set_server, 'utf8mb4_0900_ai_ci' AS collation_server,'utf8mb4_general_ci' AS collation_connection, CAST(NULL AS STRING) AS init_connect,28800 AS interactive_timeout, 'GPL' AS license,2 AS lower_case_table_names,67108864 AS max_allowed_packet,60 AS net_write_timeout, 1 AS performance_schema, 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' AS sql_mode,'IST' AS system_time_zone, 'SYSTEM' AS time_zone,'REPEATABLE-READ' AS transaction_isolation, 28800 AS wait_timeout) select * from session_variables;",
-      "matcherArray": [
-        "COMPLETE"
-      ],
-      "action": "REPLACE",
-      "columnOverrideType": "NOT_APPLICABLE",
-      "columnOverride": {
-        "prefix": "@@session."
-      },
-      "blurb": "JDBC queries in background."
-    },
-    {
       "inputCommand": "show databases",
       "outputCommand": "with select_database as (SELECT  'hibernate_mysql'  AS Database) select * from select_database;",
       "matcherArray": [

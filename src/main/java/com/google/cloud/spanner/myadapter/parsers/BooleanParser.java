@@ -16,6 +16,8 @@ package com.google.cloud.spanner.myadapter.parsers;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.spanner.ResultSet;
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 
 /**
  * Parse specified data to boolean. For most cases it is simply returning the bit representation.
@@ -24,6 +26,8 @@ import com.google.cloud.spanner.ResultSet;
 public class BooleanParser extends Parser<Boolean> {
   private static final byte[] TRUE_VALUE_BYTES = new byte[] {'1'};
   private static final byte[] FALSE_VALUE_BYTES = new byte[] {'0'};
+  public static final Set<String> TRUE_VALUES = ImmutableSet.of("true", "1");
+  public static final Set<String> FALSE_VALUES = ImmutableSet.of("false", "0");
 
   BooleanParser(ResultSet item, int position) {
     super((resultSet, index) -> item.getBoolean(position), item, position);
