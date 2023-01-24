@@ -128,8 +128,8 @@ public class QueryMessageProcessor extends MessageProcessor {
       throws Exception {
     int rowsSent = 0;
     // ResultSet cannot be accessed for pre-populated result sets without calling .next() at least
-    // once. We create pre-populated result sets for things like system variable queries.
-
+    // once. We create pre-populated result sets for things like system variable queries. So we must
+    // call sendColumnDefinitions() only after calling resultSet.next() initially.
     while (resultSet.next()) {
       if (rowsSent < 1) {
         sendColumnDefinitions(resultSet, queryReplacement);
@@ -138,12 +138,12 @@ public class QueryMessageProcessor extends MessageProcessor {
       rowsSent++;
     }
 
-    // Clients expect an Ok response if no rows were sent, otherwise an EOF response.
+    // We must send column definitions back even if result set didn't have any rows as some clients
+    // like hibernate expect it.
     if (rowsSent < 1) {
-      currentSequenceNumber = new OkResponse(currentSequenceNumber, connectionMetadata).send(true);
-    } else {
-      currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
+      sendColumnDefinitions(resultSet, queryReplacement);
     }
+    currentSequenceNumber = new EofResponse(currentSequenceNumber, connectionMetadata).send(true);
   }
 
   private void sendResultSetRow(ResultSet resultSet, QueryReplacement queryReplacement)
